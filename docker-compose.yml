@@ -7,10 +7,10 @@ services:
     ports:
       - "8080:80"
     environment:
-      - DB_HOST=mysql
-      - DB_USER=papion
-      - DB_PASSWORD=Pap10nL4vrAs2024
-      - DB_NAME=papion
+      - DB_HOST=104.234.173.105
+      - DB_USER=root
+      - DB_PASSWORD=Ncm@647534
+      - DB_NAME=adminapi
       - PHP_MEMORY_LIMIT=256M
       - MAX_FILE_UPLOAD=100M
     volumes:

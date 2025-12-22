@@ -75,10 +75,10 @@ $query_builder = TRUE;
 
 $db['local'] = array(
 	'dsn'	=> '',
-	'hostname' => 'mysql:host=mysql.papion.com.br;dbname=papion',
-	'username' => 'papion',
-	'password' => 'Pap10nL4vrAs2024',
-	'database' => 'papion',
+	'hostname' => 'mysql:host=104.234.173.105;dbname=adminapi',
+	'username' => 'root',
+	'password' => 'Ncm@647534',
+	'database' => 'adminapi',
 	'dbdriver' => 'pdo',
 	'dbprefix' => '',
 	'pconnect' => FALSE,
