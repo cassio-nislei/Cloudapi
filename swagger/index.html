@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ADMCloud API - Documentação Swagger</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Roboto", sans-serif;
+        background-color: #f5f5f5;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 20px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 2.5em;
+        font-weight: 300;
+      }
+
+      .header p {
+        margin: 10px 0 0 0;
+        font-size: 1.1em;
+        opacity: 0.9;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 30px auto;
+        padding: 0 20px;
+      }
+
+      .section {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      .section h2 {
+        color: #667eea;
+        border-bottom: 3px solid #667eea;
+        padding-bottom: 10px;
+        margin-top: 0;
+      }
+
+      .endpoint {
+        background: #f9f9f9;
+        border-left: 4px solid #667eea;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 4px;
+      }
+
+      .endpoint-method {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-weight: bold;
+        color: white;
+        margin-right: 10px;
+      }
+
+      .endpoint-method.get {
+        background-color: #61affe;
+      }
+
+      .endpoint-method.post {
+        background-color: #49cc90;
+      }
+
+      .endpoint-path {
+        font-family: "Courier New", monospace;
+        font-weight: bold;
+        color: #333;
+      }
+
+      .code-block {
+        background: #272822;
+        color: #f8f8f2;
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        margin: 15px 0;
+      }
+
+      .code-block.json {
+        border-left: 4px solid #49cc90;
+      }
+
+      .code-block.bash {
+        border-left: 4px solid #f39c12;
+      }
+
+      .table-responsive {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+      }
+
+      table th {
+        background: #667eea;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+      }
+
+      table td {
+        padding: 12px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      table tr:hover {
+        background-color: #f5f5f5;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .status-success {
+        background-color: #d4edda;
+        color: #155724;
+      }
+
+      .status-error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+
+      .status-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+      }
+
+      .required {
+        color: #e74c3c;
+        font-weight: bold;
+      }
+
+      .optional {
+        color: #27ae60;
+      }
+
+      .footer {
+        background: #333;
+        color: white;
+        text-align: center;
+        padding: 20px;
+        margin-top: 50px;
+        font-size: 14px;
+      }
+
+      .badge-method {
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 3px;
+        color: white;
+        font-size: 12px;
+      }
+
+      .badge-get {
+        background: #61affe;
+      }
+      .badge-post {
+        background: #49cc90;
+      }
+      .badge-put {
+        background: #fca130;
+      }
+      .badge-delete {
+        background: #f93e3e;
+      }
+
+      .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 4px;
+      }
+
+      .warning-box {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 4px;
+      }
+
+      .success-box {
+        background: #d4edda;
+        border-left: 4px solid #28a745;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 4px;
+      }
+
+      @media (max-width: 768px) {
+        .header h1 {
+          font-size: 1.8em;
+        }
+
+        .section {
+          padding: 20px;
+        }
+
+        table {
+          font-size: 13px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>🚀 ADMCloud API</h1>
+      <p>API de Ativação e Registro de Clientes para FrontBox</p>
+    </div>
+
+    <div class="container">
+      <!-- Informações Gerais -->
+      <div class="section">
+        <h2>📋 Informações Gerais</h2>
+        <p><strong>Versão:</strong> 1.0.0</p>
+        <p>
+          <strong>Status:</strong>
+          <span class="status-badge status-success">Ativo</span>
+        </p>
+        <p><strong>Contato:</strong> papion@papion.com.br</p>
+        <p><strong>Documentação Completa:</strong></p>
+        <ul>
+          <li><strong>OpenAPI Spec:</strong> openapi.yaml</li>
+          <li><strong>Markdown:</strong> API_DOCUMENTATION.md</li>
+          <li>
+            <strong>Análise Técnica:</strong> relatorios/ANALISE_TECNICA.md
+          </li>
+          <li>
+            <strong>Mapeamento:</strong> relatorios/ENDPOINTS_MAPEAMENTO.md
+          </li>
+          <li><strong>Schema BD:</strong> relatorios/BANCO_DADOS_SCHEMA.md</li>
+          <li><strong>Guia de Uso:</strong> relatorios/GUIA_USO.md</li>
+        </ul>
+
+        <div class="info-box">
+          <strong>ℹ️ Servidores:</strong>
+          <br />Desenvolvimento: <code>http://localhost/api/v1</code>
+          <br />Produção: <code>https://admcloud.papion.com.br/api/v1</code>
+        </div>
+      </div>
+
+      <!-- Endpoints -->
+      <div class="section">
+        <h2>🔗 Endpoints Disponíveis</h2>
+
+        <div class="endpoint">
+          <span class="endpoint-method get">GET</span>
+          <span class="endpoint-path">/passport</span>
+          <p>
+            <strong>Descrição:</strong> Validar cliente e gerenciar licenças
+          </p>
+          <p><strong>Autenticação:</strong> Pública (sem token)</p>
+        </div>
+
+        <div class="endpoint">
+          <span class="endpoint-method post">POST</span>
+          <span class="endpoint-path">/registro</span>
+          <p><strong>Descrição:</strong> Registrar novo cliente</p>
+          <p><strong>Autenticação:</strong> Bearer Token (obrigatório)</p>
+        </div>
+
+        <div class="endpoint">
+          <span class="endpoint-method get">GET</span>
+          <span class="endpoint-path">/registro</span>
+          <p><strong>Descrição:</strong> Informações do módulo de registro</p>
+          <p><strong>Autenticação:</strong> Bearer Token (obrigatório)</p>
+        </div>
+      </div>
+
+      <!-- Autenticação -->
+      <div class="section">
+        <h2>🔐 Autenticação</h2>
+
+        <h3>GET /passport - Público</h3>
+        <p>Não requer autenticação. Endpoint aberto ao público.</p>
+
+        <h3>POST /registro e GET /registro - Bearer Token</h3>
+        <p>Requer autenticação via JWT Token.</p>
+
+        <div class="code-block bash">
+          curl -X POST "http://localhost/api/v1/registro" \ -H "Authorization:
+          Bearer eyJ0eXAiOiJKV1QiLCJhbGc..." \ -H "Content-Type:
+          application/json"
+        </div>
+      </div>
+
+      <!-- Endpoints Detalhado -->
+      <div class="section">
+        <h2>📡 1. GET /passport - Validar Passport</h2>
+
+        <h3>Descrição</h3>
+        <p>
+          Valida o passport de um cliente, gerenciando licenças por dispositivo.
+          Verifica se o cliente está ativo, se a licença não expirou e se ainda
+          tem licenças disponíveis.
+          <strong>Retorna todos os dados do cliente em caso de sucesso.</strong>
+        </p>
+
+        <h3>Parâmetros</h3>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Parâmetro</th>
+                <th>Tipo</th>
+                <th>Obrigatório</th>
+                <th>Descrição</th>
+                <th>Exemplo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>cgc</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>CNPJ/CPF (com ou sem formatação)</td>
+                <td>12345678901234</td>
+              </tr>
+              <tr>
+                <td>hostname</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Nome do host/computador</td>
+                <td>DESKTOP-ABC123</td>
+              </tr>
+              <tr>
+                <td>guid</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>GUID único da instalação</td>
+                <td>550e8400-e29b-41d4-a716-446655440000</td>
+              </tr>
+              <tr>
+                <td>fbx</td>
+                <td>string</td>
+                <td><span class="optional">-</span></td>
+                <td>Versão do FrontBox</td>
+                <td>4.5.2</td>
+              </tr>
+              <tr>
+                <td>pdv</td>
+                <td>string</td>
+                <td><span class="optional">-</span></td>
+                <td>Versão do PDV</td>
+                <td>1.2.3</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Exemplo de Requisição</h3>
+        <div class="code-block bash">
+          curl -X GET
+          "http://localhost/api/v1/passport?cgc=12345678901234&hostname=DESKTOP-XYZ&guid=550e8400-e29b-41d4-a716-446655440000&fbx=4.5.2&pdv=1.2.3"
+        </div>
+
+        <h3>Respostas</h3>
+
+        <h4>✅ Sucesso</h4>
+        <div class="code-block json">
+          { "Status": true, "Mensagem": "Passport OK!", "Dados": { "id_pessoa":
+          1001, "nome": "EMPRESA LTDA", "fantasia": "Minha Empresa", "cgc":
+          "12345678901234", "email": "contato@empresa.com.br", "telefone": "(11)
+          3000-0000", "celular": "(11) 99999-9999", "contato": "João Silva",
+          "endereco": "Rua das Flores", "numero": "123", "complemento": "Sala
+          10", "bairro": "Centro", "cidade": "São Paulo", "estado": "SP", "cep":
+          "01310-100", "ativo": "S", "licencas": 5, "cont_licencas": 1,
+          "periodo": 30, "expira_em": "2025-01-15", "data_cadastro":
+          "2024-12-15", "ultimo_acesso": "2024-12-17T10:30:45", "versao_fbx":
+          "4.5.2", "versao_pdv": "1.2.3", "obs": "" } }
+        </div>
+
+        <h4>❌ Cliente não encontrado</h4>
+        <div class="code-block json">
+          { "Status": false, "Mensagem": "Registro não encontrado." }
+        </div>
+
+        <h4>❌ Cliente inativo</h4>
+        <div class="code-block json">
+          { "Status": false, "Mensagem": "Sua licença expirou ou a conta está
+          desativada. Motivo da desativação" }
+        </div>
+
+        <h4>❌ Licença expirada</h4>
+        <div class="code-block json">
+          { "Status": false, "Mensagem": "Sua licença expirou em 15/12/2024.
+          Entre em contato com o revendedor." }
+        </div>
+
+        <h4>❌ Limite de licenças atingido</h4>
+        <div class="code-block json">
+          { "Status": false, "Mensagem": "Limite de licenças atingido: 5." }
+        </div>
+      </div>
+
+      <!-- POST /registro -->
+      <div class="section">
+        <h2>📝 2. POST /registro - Registrar Novo Cliente</h2>
+
+        <h3>Descrição</h3>
+        <p>
+          Registra um novo cliente no sistema. O cliente é ativado
+          automaticamente com 1 licença e 30 dias de validade.
+        </p>
+
+        <div class="warning-box">
+          <strong>⚠️ Requer Autenticação:</strong> Bearer Token obrigatório
+        </div>
+
+        <h3>Campos do Corpo da Requisição</h3>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Campo</th>
+                <th>Tipo</th>
+                <th>Obrigatório</th>
+                <th>Descrição</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>nome</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Razão Social</td>
+              </tr>
+              <tr>
+                <td>fantasia</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Nome Fantasia</td>
+              </tr>
+              <tr>
+                <td>cgc</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>CNPJ/CPF</td>
+              </tr>
+              <tr>
+                <td>contato</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Pessoa de Contato</td>
+              </tr>
+              <tr>
+                <td>email</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Email</td>
+              </tr>
+              <tr>
+                <td>telefone</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Telefone</td>
+              </tr>
+              <tr>
+                <td>celular</td>
+                <td>string</td>
+                <td><span class="optional">-</span></td>
+                <td>Celular</td>
+              </tr>
+              <tr>
+                <td>endereco</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Endereço</td>
+              </tr>
+              <tr>
+                <td>numero</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Número</td>
+              </tr>
+              <tr>
+                <td>complemento</td>
+                <td>string</td>
+                <td><span class="optional">-</span></td>
+                <td>Complemento (apto, sala)</td>
+              </tr>
+              <tr>
+                <td>bairro</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Bairro</td>
+              </tr>
+              <tr>
+                <td>cidade</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Cidade</td>
+              </tr>
+              <tr>
+                <td>estado</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>Estado (UF)</td>
+              </tr>
+              <tr>
+                <td>cep</td>
+                <td>string</td>
+                <td><span class="required">✓</span></td>
+                <td>CEP</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Exemplo de Requisição</h3>
+        <div class="code-block bash">
+          curl -X POST "http://localhost/api/v1/registro" \ -H "Authorization:
+          Bearer seu_token_aqui" \ -H "Content-Type: application/json" \ -d '{
+          "registro": { "nome": "EMPRESA LTDA", "fantasia": "Minha Empresa",
+          "cgc": "12.345.678/0001-90", "contato": "João Silva", "email":
+          "joao@empresa.com.br", "telefone": "(11) 3000-0000", "endereco": "Rua
+          das Flores", "numero": "123", "complemento": "Sala 10", "bairro":
+          "Centro", "cidade": "São Paulo", "estado": "SP", "cep": "01310-100" }
+          }'
+        </div>
+
+        <h3>Resposta de Sucesso</h3>
+        <div class="code-block json">
+          { "status": "OK", "msg": "CHAVE_B_AQUI", "data": { "id_pessoa": 1001,
+          "nome": "EMPRESA LTDA", "fantasia": "Minha Empresa", "cgc":
+          "12345678001234", "email": "joao@empresa.com.br", "ativo": "S",
+          "licencas": 1, "cont_licencas": 1, "periodo": 30, "expira_em":
+          "2024-01-15", "data_install": "2023-12-15T10:30:00" } }
+        </div>
+
+        <h3>Resposta de Erro</h3>
+        <div class="code-block json">
+          { "status": "ERRO", "msg": "Email deve ser preenchido", "data": {} }
+        </div>
+
+        <div class="success-box">
+          <strong>✅ Ao registrar com sucesso:</strong>
+          <ul>
+            <li>Cliente criado com status ATIVO</li>
+            <li>1 licença assinada</li>
+            <li>30 dias de validade</li>
+            <li>Email enviado aos administradores</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- GET /registro -->
+      <div class="section">
+        <h2>ℹ️ 3. GET /registro - Status do Módulo</h2>
+
+        <h3>Descrição</h3>
+        <p>
+          Retorna informações sobre o módulo de registro. Útil para testes de
+          conectividade.
+        </p>
+
+        <div class="warning-box">
+          <strong>⚠️ Requer Autenticação:</strong> Bearer Token obrigatório
+        </div>
+
+        <h3>Exemplo de Requisição</h3>
+        <div class="code-block bash">
+          curl -X GET "http://localhost/api/v1/registro" \ -H "Authorization:
+          Bearer seu_token_aqui"
+        </div>
+
+        <h3>Resposta</h3>
+        <div class="code-block json">
+          { "status": "OK", "msg": "GET", "data": {} }
+        </div>
+      </div>
+
+      <!-- Códigos HTTP -->
+      <div class="section">
+        <h2>📊 Códigos HTTP</h2>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Significado</th>
+                <th>Descrição</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="status-badge status-success">200</span></td>
+                <td>OK</td>
+                <td>Requisição bem-sucedida</td>
+              </tr>
+              <tr>
+                <td><span class="status-badge status-error">400</span></td>
+                <td>Bad Request</td>
+                <td>Dados inválidos ou faltantes</td>
+              </tr>
+              <tr>
+                <td><span class="status-badge status-error">401</span></td>
+                <td>Unauthorized</td>
+                <td>Token inválido ou não fornecido</td>
+              </tr>
+              <tr>
+                <td><span class="status-badge status-error">403</span></td>
+                <td>Forbidden</td>
+                <td>Acesso negado</td>
+              </tr>
+              <tr>
+                <td><span class="status-badge status-error">404</span></td>
+                <td>Not Found</td>
+                <td>Recurso não encontrado</td>
+              </tr>
+              <tr>
+                <td><span class="status-badge status-error">500</span></td>
+                <td>Server Error</td>
+                <td>Erro interno do servidor</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Documentos -->
+      <div class="section">
+        <h2>📚 Documentação Completa</h2>
+
+        <h3>Arquivos Gerados</h3>
+        <ul>
+          <li>
+            <strong>swagger/openapi.yaml</strong> - Especificação OpenAPI 3.0
+            <p><small>Formato padrão para documentação de APIs REST</small></p>
+          </li>
+          <li>
+            <strong>swagger/API_DOCUMENTATION.md</strong> - Documentação em
+            Markdown
+            <p><small>Guia legível em formato Markdown</small></p>
+          </li>
+          <li>
+            <strong>relatorios/ANALISE_TECNICA.md</strong> - Análise Técnica
+            Completa
+            <p><small>Detalhes técnicos, arquitetura, integrações</small></p>
+          </li>
+          <li>
+            <strong>relatorios/ENDPOINTS_MAPEAMENTO.md</strong> - Mapeamento
+            Detalhado
+            <p>
+              <small>Fluxos, parâmetros, exemplos para cada endpoint</small>
+            </p>
+          </li>
+          <li>
+            <strong>relatorios/BANCO_DADOS_SCHEMA.md</strong> - Schema do Banco
+            <p><small>Estrutura das tabelas, índices, queries</small></p>
+          </li>
+          <li>
+            <strong>relatorios/GUIA_USO.md</strong> - Guia de Uso Prático
+            <p><small>Exemplos práticos e troubleshooting</small></p>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Próximos Passos -->
+      <div class="section">
+        <h2>🚀 Próximos Passos</h2>
+        <ol>
+          <li>
+            Revisar a documentação OpenAPI em <code>swagger/openapi.yaml</code>
+          </li>
+          <li>Implementar testes unitários para cada endpoint</li>
+          <li>Configurar rate limiting</li>
+          <li>Implementar logging de acessos</li>
+          <li>Configurar CORS para produção</li>
+          <li>Testar integração com FrontBox</li>
+          <li>Deploy em produção</li>
+          <li>Monitorar e manter documentação</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>ADMCloud API v1.0.0 | Documentação Gerada em 09 de Dezembro de 2024</p>
+      <p>Para suporte: papion@papion.com.br</p>
+    </div>
+  </body>
+</html>

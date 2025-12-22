@@ -1,0 +1,75 @@
+version: "3.8"
+
+services:
+  admcloud-api:
+    build: .
+    container_name: admcloud-api
+    ports:
+      - "8080:80"
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=papion
+      - DB_PASSWORD=Pap10nL4vrAs2024
+      - DB_NAME=papion
+      - PHP_MEMORY_LIMIT=256M
+      - MAX_FILE_UPLOAD=100M
+    volumes:
+      - ./application/logs:/var/www/html/application/logs
+      - ./application/cache:/var/www/html/application/cache
+      - ./uploads:/var/www/html/uploads
+    depends_on:
+      - mysql
+    networks:
+      - admcloud-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/v1/passport?cgc=test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  mysql:
+    image: mysql:8.0
+    container_name: admcloud-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: papion
+      MYSQL_USER: papion
+      MYSQL_PASSWORD: Pap10nL4vrAs2024
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - admcloud-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: admcloud-phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: papion
+      PMA_PASSWORD: Pap10nL4vrAs2024
+      PMA_DB: papion
+    depends_on:
+      - mysql
+    networks:
+      - admcloud-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+
+networks:
+  admcloud-network:
+    driver: bridge

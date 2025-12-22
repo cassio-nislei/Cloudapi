@@ -1,0 +1,107 @@
+# .gitignore - Arquivos a ignorar no Git
+
+# =================================
+# Ambiente e Configuração
+# =================================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# =================================
+# PHP e Composer
+# =================================
+vendor/
+composer.lock
+.php_cs.cache
+
+# =================================
+# IDE e Editores
+# =================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.vim/
+.emacs.d/
+
+# =================================
+# Logs
+# =================================
+application/logs/*
+!application/logs/.gitkeep
+*.log
+npm-debug.log
+yarn-error.log
+
+# =================================
+# Cache
+# =================================
+application/cache/*
+!application/cache/.gitkeep
+.cache/
+node_modules/
+
+# =================================
+# Uploads
+# =================================
+uploads/*
+!uploads/.gitkeep
+images/tmp/*
+!images/tmp/.gitkeep
+
+# =================================
+# Testes
+# =================================
+tests/
+coverage/
+.phpunit.result.cache
+
+# =================================
+# Docker
+# =================================
+.docker-env
+docker-compose.override.yml
+
+# =================================
+# Banco de Dados
+# =================================
+*.sql
+*.sqlite
+*.db
+database.sqlite
+
+# =================================
+# Sistema Operacional
+# =================================
+.DS_Store
+Thumbs.db
+.directory
+._*
+
+# =================================
+# Dependências Node (se houver)
+# =================================
+node_modules/
+package-lock.json
+yarn.lock
+
+# =================================
+# Build e Dist
+# =================================
+dist/
+build/
+.nuxt/
+
+# =================================
+# Temporários
+# =================================
+*.tmp
+*.temp
+temp/
+tmp/

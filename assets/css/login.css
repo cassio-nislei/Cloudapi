@@ -1,0 +1,15 @@
+.btn-hti {
+    color: #fff;
+    background-color: #096E97;
+    border: 1px solid #096E97;
+    padding: 7px;
+    padding-left: 20px;
+    padding-right: 20px;
+    border-radius: 3rem
+}
+
+.btn-hti:hover {        
+    background-color: #055476;
+    border: 1px solid #055476;
+    color: white;
+}

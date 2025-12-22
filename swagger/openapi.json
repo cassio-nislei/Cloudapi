@@ -1,0 +1,690 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ADMCloud - API de Ativação de Cliente",
+    "description": "API REST para ativação, registro e validação de licenças de cliente\npara o sistema FrontBox. Esta API gerencia o ciclo de vida das\nlicenças dos clientes, incluindo autenticação via passport e\nregistro de novas instalações.\n",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Suporte ADMCloud",
+      "email": "papion@papion.com.br"
+    },
+    "license": {
+      "name": "Proprietário",
+      "url": "https://www.papion.com.br"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost/api/v1",
+      "description": "Servidor de Desenvolvimento"
+    },
+    {
+      "url": "https://admcloud.papion.com.br/api/v1",
+      "description": "Servidor de Produção"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Autenticação",
+      "description": "Endpoints para autenticação e validação de passport"
+    },
+    {
+      "name": "Registro",
+      "description": "Endpoints para registro de novos clientes e instalações"
+    },
+    {
+      "name": "Licenças",
+      "description": "Endpoints para gerenciamento de licenças"
+    }
+  ],
+  "paths": {
+    "/passport": {
+      "get": {
+        "tags": ["Autenticação"],
+        "summary": "Validar Passport de Cliente",
+        "description": "Valida o passport de um cliente incluindo:\n- Verificação de CGC/CNPJ cadastrado\n- Validação de status ativo\n- Verificação de data de expiração\n- Gerenciamento de licenças por dispositivo\n- Atualização de último acesso\n",
+        "operationId": "getPassport",
+        "parameters": [
+          {
+            "name": "cgc",
+            "in": "query",
+            "required": true,
+            "description": "CNPJ/CPF do cliente (aceita com ou sem formatação)",
+            "example": "12345678901234",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hostname",
+            "in": "query",
+            "required": true,
+            "description": "Nome do host/computador da máquina cliente",
+            "example": "DESKTOP-ABC123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guid",
+            "in": "query",
+            "required": true,
+            "description": "GUID único da instalação no cliente",
+            "example": "550e8400-e29b-41d4-a716-446655440000",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fbx",
+            "in": "query",
+            "required": false,
+            "description": "Versão do FrontBox instalado no cliente",
+            "example": "4.5.2",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pdv",
+            "in": "query",
+            "required": false,
+            "description": "Versão do módulo PDV instalado",
+            "example": "1.2.3",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validação concluída com sucesso ou com mensagem de erro",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Status": {
+                      "type": "boolean",
+                      "description": "Indica se a autenticação foi bem-sucedida",
+                      "example": true
+                    },
+                    "Mensagem": {
+                      "type": "string",
+                      "description": "Mensagem de resposta (sucesso ou erro)",
+                      "example": "Passport OK!"
+                    },
+                    "Dados": {
+                      "type": "object",
+                      "description": "Dados completos do cliente (retornado apenas em caso de sucesso)",
+                      "properties": {
+                        "id_pessoa": {
+                          "type": "integer",
+                          "example": 1001
+                        },
+                        "nome": {
+                          "type": "string",
+                          "example": "EMPRESA LTDA"
+                        },
+                        "fantasia": {
+                          "type": "string",
+                          "example": "Minha Empresa"
+                        },
+                        "cgc": {
+                          "type": "string",
+                          "example": "12345678901234"
+                        },
+                        "email": {
+                          "type": "string",
+                          "example": "contato@empresa.com.br"
+                        },
+                        "telefone": {
+                          "type": "string",
+                          "example": "(11) 3000-0000"
+                        },
+                        "celular": {
+                          "type": "string",
+                          "example": "(11) 99999-9999"
+                        },
+                        "contato": {
+                          "type": "string",
+                          "example": "João Silva"
+                        },
+                        "endereco": {
+                          "type": "string",
+                          "example": "Rua das Flores"
+                        },
+                        "numero": {
+                          "type": "string",
+                          "example": "123"
+                        },
+                        "complemento": {
+                          "type": "string",
+                          "example": "Sala 10"
+                        },
+                        "bairro": {
+                          "type": "string",
+                          "example": "Centro"
+                        },
+                        "cidade": {
+                          "type": "string",
+                          "example": "São Paulo"
+                        },
+                        "estado": {
+                          "type": "string",
+                          "example": "SP"
+                        },
+                        "cep": {
+                          "type": "string",
+                          "example": "01310-100"
+                        },
+                        "ativo": {
+                          "type": "string",
+                          "example": "S"
+                        },
+                        "licencas": {
+                          "type": "integer",
+                          "example": 5
+                        },
+                        "cont_licencas": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "periodo": {
+                          "type": "integer",
+                          "example": 30
+                        },
+                        "expira_em": {
+                          "type": "string",
+                          "example": "2025-01-15"
+                        },
+                        "data_cadastro": {
+                          "type": "string",
+                          "example": "2024-12-15"
+                        },
+                        "ultimo_acesso": {
+                          "type": "string",
+                          "example": "2024-12-17 10:30:45"
+                        },
+                        "versao_fbx": {
+                          "type": "string",
+                          "example": "4.5.2"
+                        },
+                        "versao_pdv": {
+                          "type": "string",
+                          "example": "1.2.3"
+                        },
+                        "obs": {
+                          "type": "string",
+                          "example": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "sucesso": {
+                    "summary": "Passport validado com sucesso",
+                    "value": {
+                      "Status": true,
+                      "Mensagem": "Passport OK!",
+                      "Dados": {
+                        "id_pessoa": 1001,
+                        "nome": "EMPRESA LTDA",
+                        "fantasia": "Minha Empresa",
+                        "cgc": "12345678901234",
+                        "email": "contato@empresa.com.br",
+                        "telefone": "(11) 3000-0000",
+                        "celular": "(11) 99999-9999",
+                        "contato": "João Silva",
+                        "endereco": "Rua das Flores",
+                        "numero": "123",
+                        "complemento": "Sala 10",
+                        "bairro": "Centro",
+                        "cidade": "São Paulo",
+                        "estado": "SP",
+                        "cep": "01310-100",
+                        "ativo": "S",
+                        "licencas": 5,
+                        "cont_licencas": 1,
+                        "periodo": 30,
+                        "expira_em": "2025-01-15",
+                        "data_cadastro": "2024-12-15",
+                        "ultimo_acesso": "2024-12-17T10:30:45",
+                        "versao_fbx": "4.5.2",
+                        "versao_pdv": "1.2.3",
+                        "obs": ""
+                      }
+                    }
+                  },
+                  "cliente_inativo": {
+                    "summary": "Cliente inativo ou licença expirada",
+                    "value": {
+                      "Status": false,
+                      "Mensagem": "Sua licença expirou ou a conta está desativada. Motivo da desativação"
+                    }
+                  },
+                  "licenca_expirada": {
+                    "summary": "Licença com data de expiração vencida",
+                    "value": {
+                      "Status": false,
+                      "Mensagem": "Sua licença expirou em 15/12/2024. Entre em contato com o revendedor."
+                    }
+                  },
+                  "limite_licencas": {
+                    "summary": "Limite de licenças atingido",
+                    "value": {
+                      "Status": false,
+                      "Mensagem": "Limite de licenças atingido: 5."
+                    }
+                  },
+                  "dispositivo_invalido": {
+                    "summary": "Dispositivo não associado à licença",
+                    "value": {
+                      "Status": false,
+                      "Mensagem": "A Licença não está associada a este dispositivo."
+                    }
+                  },
+                  "cliente_nao_encontrado": {
+                    "summary": "CNPJ não encontrado",
+                    "value": {
+                      "Status": false,
+                      "Mensagem": "Registro não encontrado."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/registro": {
+      "get": {
+        "tags": ["Registro"],
+        "summary": "Obter informações de registro",
+        "description": "Retorna informações sobre o módulo de registro.\nRequer autenticação via token.\n",
+        "operationId": "getRegistro",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Requisição GET concluída",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "GET"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Registro"],
+        "summary": "Registrar Novo Cliente",
+        "description": "Registra um novo cliente no sistema com os dados completos.\nApós o registro bem-sucedido:\n- Cliente ativado com status ATIVO\n- 1 licença disponível\n- Período de 30 dias de validade\n- Email notificado aos administradores\n\nRequer autenticação via token.\n",
+        "operationId": "postRegistro",
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "registro": {
+                    "type": "object",
+                    "required": [
+                      "nome",
+                      "fantasia",
+                      "cgc",
+                      "contato",
+                      "email",
+                      "telefone",
+                      "endereco",
+                      "numero",
+                      "bairro",
+                      "cidade",
+                      "estado",
+                      "cep"
+                    ],
+                    "properties": {
+                      "nome": {
+                        "type": "string",
+                        "description": "Razão Social da empresa",
+                        "example": "EMPRESA LTDA"
+                      },
+                      "fantasia": {
+                        "type": "string",
+                        "description": "Nome fantasia da empresa",
+                        "example": "Minha Empresa"
+                      },
+                      "cgc": {
+                        "type": "string",
+                        "description": "CNPJ/CPF (com ou sem formatação)",
+                        "example": "12.345.678/0001-90"
+                      },
+                      "contato": {
+                        "type": "string",
+                        "description": "Pessoa de contato",
+                        "example": "João Silva"
+                      },
+                      "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "Email para contato e notificações",
+                        "example": "joao@empresa.com.br"
+                      },
+                      "telefone": {
+                        "type": "string",
+                        "description": "Telefone comercial",
+                        "example": "(11) 3000-0000"
+                      },
+                      "celular": {
+                        "type": "string",
+                        "description": "Celular para contato",
+                        "example": "(11) 99999-9999"
+                      },
+                      "endereco": {
+                        "type": "string",
+                        "description": "Endereço completo",
+                        "example": "Rua das Flores"
+                      },
+                      "numero": {
+                        "type": "string",
+                        "description": "Número do endereço",
+                        "example": "123"
+                      },
+                      "complemento": {
+                        "type": "string",
+                        "description": "Complemento do endereço (apto, sala, etc)",
+                        "example": "Sala 10"
+                      },
+                      "bairro": {
+                        "type": "string",
+                        "description": "Bairro",
+                        "example": "Centro"
+                      },
+                      "cidade": {
+                        "type": "string",
+                        "description": "Cidade",
+                        "example": "São Paulo"
+                      },
+                      "estado": {
+                        "type": "string",
+                        "description": "Estado (UF)",
+                        "example": "SP"
+                      },
+                      "cep": {
+                        "type": "string",
+                        "description": "CEP (com ou sem formatação)",
+                        "example": "01310-100"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "registro": {
+                    "nome": "EMPRESA LTDA",
+                    "fantasia": "Minha Empresa",
+                    "cgc": "12.345.678/0001-90",
+                    "contato": "João Silva",
+                    "email": "joao@empresa.com.br",
+                    "telefone": "(11) 3000-0000",
+                    "celular": "(11) 99999-9999",
+                    "endereco": "Rua das Flores",
+                    "numero": "123",
+                    "complemento": "Sala 10",
+                    "bairro": "Centro",
+                    "cidade": "São Paulo",
+                    "estado": "SP",
+                    "cep": "01310-100"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registro realizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["OK", "ERRO"],
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "description": "Mensagem ou chave B gerada",
+                      "example": "CHAVE_B_AQUI"
+                    },
+                    "data": {
+                      "type": "object",
+                      "description": "Dados completos do cliente registrado",
+                      "properties": {
+                        "id_pessoa": {
+                          "type": "integer"
+                        },
+                        "nome": {
+                          "type": "string"
+                        },
+                        "fantasia": {
+                          "type": "string"
+                        },
+                        "cgc": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "ativo": {
+                          "type": "string",
+                          "enum": ["S", "N", "B"]
+                        },
+                        "licencas": {
+                          "type": "integer"
+                        },
+                        "cont_licencas": {
+                          "type": "integer"
+                        },
+                        "periodo": {
+                          "type": "integer"
+                        },
+                        "expira_em": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "data_install": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "sucesso": {
+                    "summary": "Registro realizado com sucesso",
+                    "value": {
+                      "status": "OK",
+                      "msg": "CHAVE_B_AQUI",
+                      "data": {
+                        "id_pessoa": 1001,
+                        "nome": "EMPRESA LTDA",
+                        "fantasia": "Minha Empresa",
+                        "cgc": "12345678001234",
+                        "email": "joao@empresa.com.br",
+                        "ativo": "S",
+                        "licencas": 1,
+                        "cont_licencas": 1,
+                        "periodo": 30,
+                        "expira_em": "2024-01-15",
+                        "data_install": "2023-12-15T10:30:00"
+                      }
+                    }
+                  },
+                  "erro_validacao": {
+                    "summary": "Erro na validação dos dados",
+                    "value": {
+                      "status": "ERRO",
+                      "msg": "Email deve ser preenchido",
+                      "data": {}
+                    }
+                  },
+                  "erro_banco": {
+                    "summary": "Erro ao salvar no banco de dados",
+                    "value": {
+                      "status": "ERRO",
+                      "msg": "Erro ao salvar dados. Tente novamente.",
+                      "data": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PassportResponse": {
+        "type": "object",
+        "properties": {
+          "Status": {
+            "type": "boolean"
+          },
+          "Mensagem": {
+            "type": "string"
+          }
+        }
+      },
+      "ClienteRegistro": {
+        "type": "object",
+        "required": ["nome", "fantasia", "cgc", "email"],
+        "properties": {
+          "id_pessoa": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "fantasia": {
+            "type": "string"
+          },
+          "cgc": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "telefone": {
+            "type": "string"
+          },
+          "celular": {
+            "type": "string"
+          },
+          "endereco": {
+            "type": "string"
+          },
+          "numero": {
+            "type": "string"
+          },
+          "complemento": {
+            "type": "string"
+          },
+          "bairro": {
+            "type": "string"
+          },
+          "cidade": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string"
+          },
+          "cep": {
+            "type": "string"
+          },
+          "ativo": {
+            "type": "string",
+            "enum": ["S", "N", "B"],
+            "description": "S = Ativo, N = Desativado, B = Bloqueado"
+          },
+          "licencas": {
+            "type": "integer"
+          },
+          "cont_licencas": {
+            "type": "integer"
+          },
+          "periodo": {
+            "type": "integer",
+            "description": "Período de validade em dias"
+          },
+          "expira_em": {
+            "type": "string",
+            "format": "date"
+          },
+          "data_install": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ERRO"]
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BasicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "HTTP Basic Authentication com credenciais fixas. Utilize: api_frontbox:api_FBXzylXI0ZluneF1lt3rwXyZsfayp0cCrKCGX0rg"
+      }
+    }
+  },
+  "security": [
+    {
+      "BasicAuth": []
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+ 
+#Remove o acesso a pasta system
+RewriteCond %{REQUEST_URI} ^system.*
+ 
+#Redireciona /index.php/nomedocontroller/ to /nomedocontroller/funcao/
+RewriteRule ^(.*)$ index.php/$1 [L]
+ 
+#se o arquivo nao existir (um css ou javascript por exemplo)
+#ele redireciona para o index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?/$1 [L]
+
+#aqui fazemos o redirecionamento 301 de uma url.com.br para www.url.com.br
+RewriteCond %{HTTP_HOST} ^(127\.0\.0\.1)(:80)? [NC]
+RewriteRule ^(.*) http://127.0.0.1/$1 [R=301,L]
+# CONFIGURAR UTILIZAÇÃO DO HTTPS
+#RewriteEngine On #ja esta habilitada na linha 2
+#RewriteCond %{SERVER_PORT} 80
+#RewriteRule ^(.*)$ https://www.hticontrole.com.br/$1 [R,L]
+</IfModule>
+<IfModule !mod_rewrite.c>
+#caso o mod_rewrite nao esteja habilitado ele redireciona todo erro 404
+#para o index.php ainda funcionando
+ErrorDocument 404 /index.php
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header  set Access-Control-Allow-Methods "POST, GET, PUT, OPTIONS, PATCH, DELETE"
+    Header  set Access-Control-Allow-Origin "*"
+    Header  set Access-Control-Allow-Credentials "true"
+    Header  set Access-Control-Allow-Headers "X-Accept-Charset,X-Accept,Content-Type,Credentials,Authorization"
+</IfModule>
+
+#pesquisa de vendas no mes saturava a memoria,
+#entao aqui seto um limite maior para nao bloquear o script
+#php_value memory_limit 256M

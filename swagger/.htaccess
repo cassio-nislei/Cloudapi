@@ -1,0 +1,8 @@
+<Files "*">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+AddType application/json .json
+AddType application/x-yaml .yaml
+AddType text/html .html

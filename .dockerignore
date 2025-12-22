@@ -1,0 +1,50 @@
+# .dockerignore - Arquivos e diretórios a ignorar no build do Docker
+
+# VCS
+.git
+.gitignore
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Composer
+vendor/
+composer.lock
+
+# Logs
+application/logs/*
+
+# Cache
+application/cache/*
+.cache
+
+# Uploads (pode ser incluído se necessário)
+uploads/*
+!uploads/.gitkeep
+
+# Testes
+tests/
+
+# Documentação (opcional)
+*.md
+!README.md
+CONTRIBUTING.md
+CHANGELOG.md
+
+# Node
+node_modules/
+npm-debug.log
+yarn.lock
+
+# Outros
+.env
+.env.local
+.env.*.local
+*.log
+*.tmp
