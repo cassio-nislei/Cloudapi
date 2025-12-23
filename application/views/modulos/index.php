@@ -237,6 +237,9 @@
                 ajax: {
                     url: this.base_url+'Modulos/getAll',
                     dataSrc: 'data',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 },
                 columns: [
                     {   data: 'controle' },

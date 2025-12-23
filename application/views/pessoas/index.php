@@ -459,6 +459,9 @@
                 ajax: {
                     url: this.base_url+'Pessoas/getAll',
                     dataSrc: 'data',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 },
                 columns: [
                     {   

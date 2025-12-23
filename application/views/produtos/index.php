@@ -418,6 +418,9 @@
                 ajax: {
                     url: url,
                     dataSrc: 'data',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 },                
                 order: [[0, 'asc']], // Ordena pela primeira coluna (id) em ordem crescente               
                 columns: [

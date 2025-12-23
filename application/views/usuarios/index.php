@@ -412,6 +412,9 @@
                 ajax: {
                     url: this.base_url+'Usuarios/getAll',
                     dataSrc: 'data',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 },
                 columns: [
                     {   data: 'grupo'  },

@@ -364,6 +364,9 @@
                 ajax: {
                     url: url,
                     dataSrc: 'data',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 },
                 columns: [
                     {   data: 'id',

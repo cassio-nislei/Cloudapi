@@ -433,6 +433,9 @@
                 ajax: {
                     url: this.base_url+'Ncm/getAll',
                     dataSrc: 'data',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 },                
                 order: [[0, 'asc']], // Ordena pela primeira coluna (id) em ordem crescente               
                 columns: [

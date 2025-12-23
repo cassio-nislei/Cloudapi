@@ -1132,3 +1132,26 @@
         return '';
     }
     
+    /**
+     * Verifica se o usuário está autenticado
+     * Se não estiver e for uma requisição AJAX, retorna JSON com erro
+     * Se não estiver e não for AJAX, redireciona para login
+     * 
+     * @param object $CI CodeIgniter instance
+     * @return bool true se autenticado, false caso contrário
+     */
+    function check_authenticated(&$CI) {
+        if ($CI->session->userdata('logado') !== TRUE) {
+            // Se for requisição AJAX, retorna JSON
+            if ($CI->input->is_ajax_request()) {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => FALSE, 'msg' => 'Não autenticado', 'data' => []]);
+                exit;
+            }
+            // Caso contrário, redireciona para login
+            redirect(base_url('Account/login'));
+            return false;
+        }
+        return true;
+    }
+    

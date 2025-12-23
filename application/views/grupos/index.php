@@ -377,6 +377,9 @@
                 ajax: {
                     url: this.base_url+'Grupos/getAll',
                     dataSrc: 'data',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 },
                 columns: [
                     {   data: 'nome' },

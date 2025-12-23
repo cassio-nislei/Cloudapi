@@ -199,6 +199,9 @@
                 ajax: {
                     url: this.base_url+'Filiais/getAll',
                     dataSrc: 'data',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 },
                 columns: [
                     {   data: 'nome' },                    
