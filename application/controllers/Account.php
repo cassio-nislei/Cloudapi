@@ -93,7 +93,7 @@ class Account extends CI_Controller {
                             'user.emitente_id' => $user->emitente_id,
                             'user.grupo_id'    => $user->grupo_id,
                             'user.grupo'       => $user->grupo,
-                            'user.modulos'     => $user->permissoes, //get_permissoes($user->grupo_id, $user->emitente_id)
+                            'user.modulos'     => isset($user->permissoes) ? $user->permissoes : '', //get_permissoes($user->grupo_id, $user->emitente_id)
                             'user.auth'        => base64_encode($user->email.':'.$user->token_auth),
                             'user.sysop'       => $user->sysop === 'S',
                         ];
@@ -101,22 +101,23 @@ class Account extends CI_Controller {
                         //dados do emitente                               
                         $emitente = $user->emitente; //$this->emitentes->get($user->emitente_id);
                         if ($emitente) {
+                            $emitente_home = isset($user->emitente_home) ? $user->emitente_home : '';
                             $sessemit = [
-                                'emit.id'         => $emitente->id,
-                                'emit.nome'       => $emitente->nome,
-                                'emit.fantasia'   => $emitente->fantasia,
-                                'emit.cgc'        => formata_cgc($emitente->cgc),
-                                'emit.telefone'   => formata_celular($emitente->telefone),
-                                'emit.celular'    => formata_celular($emitente->celular),
-                                'emit.endereco'   => $emitente->endereco . ' ' . $emitente->numero,
-                                'emit.cidade'     => $emitente->cidade .'/'. $emitente->estado,
-                                'emit.bairro'     => $emitente->bairro .' CEP: '.$emitente->cep,
+                                'emit.id'         => isset($emitente->id) ? $emitente->id : '',
+                                'emit.nome'       => isset($emitente->nome) ? $emitente->nome : '',
+                                'emit.fantasia'   => isset($emitente->fantasia) ? $emitente->fantasia : '',
+                                'emit.cgc'        => isset($emitente->cgc) ? formata_cgc($emitente->cgc) : '',
+                                'emit.telefone'   => isset($emitente->telefone) ? formata_celular($emitente->telefone) : '',
+                                'emit.celular'    => isset($emitente->celular) ? formata_celular($emitente->celular) : '',
+                                'emit.endereco'   => (isset($emitente->endereco) ? $emitente->endereco : '') . ' ' . (isset($emitente->numero) ? $emitente->numero : ''),
+                                'emit.cidade'     => (isset($emitente->cidade) ? $emitente->cidade : '') .'/'. (isset($emitente->estado) ? $emitente->estado : ''),
+                                'emit.bairro'     => (isset($emitente->bairro) ? $emitente->bairro : '') .' CEP: '.(isset($emitente->cep) ? $emitente->cep : ''),
                                 'emit.logo'       => empty($emitente->logo) ? '' : base_url("uploads/$emitente->logo"),          
                                 //'emit.home_local' => str_replace('//', '/', get_rootdir().$user->emitente_home ),                                
-                                'emit.home'       => 'https://api.nextingresso.com.br'.$user->emitente_home.'/',
-                                'emit.token'      => $emitente->token,                                                                 
-                                'emit.user_htipay'  => $emitente->user_htipay,
-                                'emit.token_htipay' => $emitente->token_htipay,                                
+                                'emit.home'       => 'https://api.nextingresso.com.br'.$emitente_home.'/',
+                                'emit.token'      => isset($emitente->token) ? $emitente->token : '',                                                                 
+                                'emit.user_htipay'  => isset($emitente->user_htipay) ? $emitente->user_htipay : '',
+                                'emit.token_htipay' => isset($emitente->token_htipay) ? $emitente->token_htipay : '',                                
                             ];
                             $this->session->set_userdata($sessemit);
                         }
