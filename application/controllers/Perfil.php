@@ -10,7 +10,13 @@ class Perfil extends REST_Controller {
         parent::__construct();
         
         //se nao estiver logado, direciona para login
-        if ($this->session->userdata('logado') !== TRUE) {           
+        if ($this->session->userdata('logado') !== TRUE) {
+            // Se for requisição AJAX, retorna JSON
+            if ($this->input->is_ajax_request()) {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => FALSE, 'msg' => 'Não autenticado', 'data' => []]);
+                exit;
+            }
             redirect(base_url('Account/login'));
         }
     }
