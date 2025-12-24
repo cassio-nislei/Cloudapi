@@ -23,6 +23,78 @@ class Pessoas extends CI_Controller {
         $this->load->model('PessoaLicencas_model', 'licencas');
     }
     
+    function index() {
+        $status = FALSE;
+        $msg = NULL;
+        $data = [];
+        
+        try {
+            // Buscar por CGC/CNPJ se fornecido como parâmetro GET
+            $cgc = $this->input->get('cnpj');
+            $cgc = $this->input->get('cgc') ?: $cgc;  // Aceita ambos os nomes
+            
+            if (!empty($cgc)) {
+                // Buscar pessoa por CGC
+                $pessoa = $this->modelo->getByCgc($cgc);
+                
+                if ($pessoa) {
+                    $status = TRUE;
+                    $msg = 'Pessoa encontrada';
+                    
+                    // Formatar dados da resposta
+                    $pessoa->CGC                = formata_cgc($pessoa->CGC);
+                    $pessoa->CEP                = formata_cep($pessoa->CEP);
+                    $pessoa->CELULAR            = formata_celular($pessoa->CELULAR);
+                    $pessoa->TELEFONE           = formata_celular($pessoa->TELEFONE);
+                    $pessoa->FAX                = formata_celular($pessoa->FAX);
+                    $pessoa->DATA_CADASTRO      = dateToBr($pessoa->DATA_CADASTRO);
+                    $pessoa->ULTIMA_ATUALIZACAO = dateToBr($pessoa->ULTIMA_ATUALIZACAO);
+                    $pessoa->EXPIRA_EM          = dateToBr($pessoa->EXPIRA_EM);
+                    $pessoa->DATA_INSTALL       = dateToBr($pessoa->DATA_INSTALL);
+                    $pessoa->MENSALIDADE        = valorToBr($pessoa->MENSALIDADE);
+                    
+                    // Obter licenças associadas
+                    $pessoa->LISTA_LICENCAS = $this->licencas->getByIdPessoa($pessoa->ID_PESSOA);
+                    if ($pessoa->LISTA_LICENCAS) {
+                        foreach($pessoa->LISTA_LICENCAS as $licenca) {
+                            $licenca->LAST_LOGIN = dateToBr($licenca->LAST_LOGIN);
+                        }
+                    }
+                    
+                    $data = $pessoa;
+                } else {
+                    // Retorna vazio mas sem erro (para indicar que busca foi bem-sucedida mas não encontrou)
+                    $status = FALSE;
+                    $msg = 'Pessoa não encontrada para o CGC informado';
+                    $data = NULL;
+                }
+            } else {
+                // Se não há parâmetro de busca, retorna todas
+                $registros = $this->modelo->getAll();
+                
+                if ($registros) {
+                    $status = TRUE;
+                    $msg = 'Registros encontrados: ' . count($registros);
+                    
+                    foreach($registros as $d) {
+                        $d->status = $d->ATIVO === 'S' ? 'Ativo' : 'Desativado';
+                        $data[] = $d;
+                    }
+                } else {
+                    throw new Exception('Nenhum registro encontrado.');
+                }
+            }
+            
+        } catch (Exception $ex) {
+            $status = FALSE;
+            $msg = $ex->getMessage();
+            $data = [];
+        }
+        
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => $status, 'msg' => $msg, 'data' => $data]);
+    }
+    
     function get() {
         $status = FALSE;
         $msg = NULL;

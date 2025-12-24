@@ -1,0 +1,52 @@
+{
+  IMPLEMENTAÇÕES FALTANDO em uEmpresaLicencaManager.pas
+  
+  As funções estão DECLARADAS na interface (linhas 89-91)
+  MAS NÃO TÊM IMPLEMENTAÇÃO na seção implementation.
+  
+  FUNÇÕES FALTANDO:
+  1. GetCNPJEmpresaAtual: string
+  2. GetTerminalAtual: string  
+  3. GetMachineSerial: string
+}
+
+// ===== IMPLEMENTAÇÕES QUE FALTAM =====
+
+function TEmpresaLicencaManager.GetCNPJEmpresaAtual: string;
+begin
+  // Retornar CNPJ da empresa carregada em dados.qryEmpresa
+  if Assigned(dados) and dados.qryEmpresa.Active and not dados.qryEmpresa.IsEmpty then
+    Result := dados.qryEmpresaCNPJ.AsString
+  else
+    Result := '';
+end;
+
+function TEmpresaLicencaManager.GetTerminalAtual: string;
+begin
+  // Retornar hostname da máquina (já existe GetHostName)
+  Result := GetHostName;
+  
+  if Result = '' then
+    Result := 'UNKNOW_TERMINAL';
+end;
+
+function TEmpresaLicencaManager.GetMachineSerial: string;
+begin
+  // OPÇÃO 1: Usar GUID da máquina (RECOMENDADO - é determinístico)
+  Result := GetMachineGUID;
+  
+  // OPÇÃO 2: Usar Hostname
+  // Result := GetHostName;
+  
+  if Result = '' then
+    Result := 'UNKNOWN_SERIAL';
+end;
+
+{
+  ONDE ADICIONAR ESSAS IMPLEMENTAÇÕES:
+  
+  No arquivo uEmpresaLicencaManager.pas, após a função GetMachineGUID
+  (que está próxima da linha 170), adicionar as três funções acima.
+  
+  Elas devem ficar na seção "implementation" do arquivo, não na "interface".
+}

@@ -1,10 +1,10 @@
 <?php
 /**
  * Test Passport API
- * CNPJ: 26.578.378/0001-60
+ * CNPJ: 92.702.067/0001-96
  */
 
-$cnpj = '26.578.378/0001-60';
+$cnpj = '92.702.067/0001-96';
 $cnpj_clean = preg_replace('/[^0-9]/', '', $cnpj);
 
 echo "=== TESTE PASSPORT API ===\n";
@@ -42,21 +42,6 @@ if ($result->num_rows > 0) {
     $pessoa = $row;
 } else {
     echo "   ✗ CGC não encontrado na tabela PESSOAS\n\n";
-    
-    // Try to find similar CNPJs
-    echo "2. Procurando CNPJs similares...\n";
-    $sql = "SELECT CGC, NOME FROM PESSOAS WHERE CGC LIKE '26%' LIMIT 10";
-    $result = $conn->query($sql);
-    
-    if ($result->num_rows > 0) {
-        echo "   Encontrados " . $result->num_rows . " registros começando com '26':\n";
-        while ($row = $result->fetch_assoc()) {
-            echo "   - CGC: {$row['CGC']}, Nome: {$row['NOME']}\n";
-        }
-    } else {
-        echo "   Nenhum CGC começando com '26' encontrado.\n";
-    }
-    
     $pessoa_found = false;
 }
 
@@ -123,6 +108,8 @@ if ($pessoa_found) {
         )
     );
     echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+} else {
+    echo "CNPJ não encontrado no banco de dados.\n";
 }
 
 $conn->close();

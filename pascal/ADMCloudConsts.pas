@@ -1,11 +1,11 @@
-﻿unit ADMCloudConsts;
+unit ADMCloudConsts;
 
 interface
 
 const
   // URLs padrão
-  ADMCloud_URL_DEV = 'http://localhost/v1';
-  ADMCloud_URL_PROD = 'https://admcloud.papion.com.br/v1';
+  ADMCloud_URL_DEV = 'http://localhost/api/v1';
+  ADMCloud_URL_PROD = 'http://104.234.173.105:7010/api/v1';
 
   // Credenciais padrão
   ADMCloud_USER = 'api_frontbox';

@@ -1,0 +1,34 @@
+{
+  CORREÇÃO: ADMCloudAPI.pas - Erro 404
+  
+  PROBLEMA: A classe estava usando:
+    - 'passport?cgc=...' ❌ Retorna 404
+  
+  SOLUÇÃO: Corrigir para:
+    - 'Passport/consulta?cgc=...' ✅ Funciona
+    - 'Pessoas/getAll' ✅ Funciona
+    - 'Pessoas/salvar' ✅ Funciona
+    
+  MUDANÇA NECESSÁRIA:
+  
+  Arquivo: ADMCloudAPI.pas
+  Linha: 301
+  
+  ❌ ANTES:
+  LEndpoint := 'passport?cgc=' + ACGC + '&hostname=' + AHostname + '&guid=' + AGUID;
+  
+  ✅ DEPOIS:
+  LEndpoint := 'Passport/consulta?cgc=' + ACGC + '&hostname=' + AHostname + '&guid=' + AGUID;
+  
+  ---
+  
+  TAMBÉM VERIFICAR:
+  
+  Linha: 316 - GetStatusRegistro
+  ❌ LEndpoint := 'registro'
+  ✅ Mudar para algo como: 'Pessoas/getAll' ou outro endpoint válido
+  
+  Linha: 367 - RegistrarCliente POST
+  ❌ LEndpoint := 'registro'
+  ✅ Mudar para: 'Pessoas/salvar'
+}

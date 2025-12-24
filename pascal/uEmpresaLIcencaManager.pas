@@ -6,7 +6,7 @@ uses
   System.SysUtils, System.Classes, System.DateUtils, System.IOUtils, System.JSON,
   Vcl.ExtCtrls, Vcl.Forms, Vcl.StdCtrls, Vcl.DBCtrls,
   Data.DB,
-  uDados, uDadosWeb, //uPrincipal,
+  uDados, uDadosWeb,// uPrincipal,
   ACBrConsultaCNPJ, // Componente em TDadosWeb (DataModule) - DadosWeb.ACBrConsultaCNPJ1
   serial,           // SerialNum(FDrive: String) - ajustado em GetMachineSerial
   ADMCloudAPI,      // API REST para validação de licenças
@@ -51,7 +51,6 @@ type
     FDiasToleranciaCache: Integer; // Dias de tolerância sem conexão à API (padrão: 7)
     FVersaoFBX: string;            // Versão do FBX para enviar na validação
     FVersaoPDV: string;            // Versão do PDV para enviar na validação
-    FUltimoErro: string;           // Armazena última mensagem de erro
 
 
 
@@ -91,7 +90,6 @@ type
     function GetTerminalAtual: string;
     function GetMachineSerial: string;
     function CarregarEmpresaDoMySQL(const CNPJ: string): Boolean;
-    function VerificarCNPJNaAPI(const ACNPJ: string): Boolean;
     function RegistrarEmpresaNoMySQL(const ANome, AFantasia, ACNPJ, AContato, AEmail, ATelefone: string;
       const ACelular: string = ''; const AEndereco: string = ''; const ANumero: string = '';
       const AComplemento: string = ''; const ABairro: string = ''; const ACidade: string = '';
@@ -117,7 +115,6 @@ type
     procedure ConfigurarURLAPI(const AURL: string);
     procedure ConfigurarCredenciaisAPI(const AUsername, APassword: string);
     function GetUltimoErro: string;
-    function GetDebugInfo: string;
 
     property UltimaSincronizacao: TDateTime read FUltimaSincronizacao;
     property MachineGUID: string read GetMachineGUID;
@@ -194,38 +191,6 @@ begin
   finally
     Registry.Free;
   end;
-end;
-
-function TEmpresaLicencaManager.GetCNPJEmpresaAtual: string;
-begin
-  { Retornar CNPJ da empresa carregada em dados }
-  if Assigned(dados) and Assigned(dados.qryEmpresa) then
-  begin
-    if dados.qryEmpresa.Active and not dados.qryEmpresa.IsEmpty then
-      Result := dados.qryEmpresaCNPJ.AsString
-    else
-      Result := '';
-  end
-  else
-    Result := '';
-end;
-
-function TEmpresaLicencaManager.GetTerminalAtual: string;
-begin
-  { Retornar hostname da máquina }
-  Result := GetHostName;
-  
-  if Result = '' then
-    Result := 'UNKNOW_TERMINAL';
-end;
-
-function TEmpresaLicencaManager.GetMachineSerial: string;
-begin
-  { Retornar identificador único da máquina - usar GUID (determinístico) }
-  Result := GetMachineGUID;
-  
-  if Result = '' then
-    Result := 'UNKNOWN_SERIAL';
 end;
 
 procedure TEmpresaLicencaManager.SetDataUltimoGetSucesso;
@@ -331,7 +296,6 @@ begin
   FDiasToleranciaCache := 7; // 7 dias de tolerância (como em uDMPassport)
   FVersaoFBX := ''; // Vazio por padrão, pode ser configurado
   FVersaoPDV := ''; // Vazio por padrão, pode ser configurado
-  FUltimoErro := ''; // Inicializar string de erro
 
   FTimer := TTimer.Create(Self);
   FTimer.Enabled := False;
@@ -507,6 +471,32 @@ begin
   if Assigned(FOnStatusChange) then
     FOnStatusChange(Self, AStatus, Detail);
   Log(Format('Status: %d - %s', [Ord(AStatus), Detail]));
+end;
+
+function TEmpresaLicencaManager.GetCNPJEmpresaAtual: string;
+begin
+  Result := '';
+  if not dados.qryEmpresa.Active then
+    dados.qryEmpresa.Open;
+
+  if not dados.qryEmpresa.IsEmpty then
+    Result := dados.qryEmpresaCNPJ.AsString;
+end;
+
+function TEmpresaLicencaManager.GetTerminalAtual: string;
+begin
+  Result := dados.nometerminal; // campo já existente no TDados :contentReference[oaicite:17]{index=17}
+end;
+
+function TEmpresaLicencaManager.GetMachineSerial: string;
+begin
+  Result := '';
+  try
+    // Obtém o serial do drive C: usando SerialNum da unit Serial
+    Result := serial.SerialNum('C');
+  except
+    Result := '';
+  end;
 end;
 
 procedure TEmpresaLicencaManager.InicializarEmpresa;
@@ -758,42 +748,70 @@ begin
   end;
 
   try
-    Log('SincronizarComGerenciadorLicenca: iniciando sincronizacao via API ADMCloud.');
+    Log('SincronizarComGerenciadorLicenca: iniciando sincronização via API ADMCloud.');
 
-    // Obter dados necessarios para validacao
+    if not Assigned(FAPIHelper) then
+    begin
+      Log('Erro: FAPIHelper não inicializado.');
+      ChangeStatus(lsErroGeral, 'API não inicializada.');
+      Exit(False);
+    end;
+
+    // Obter dados necessários para validação
     LCNPJ := GetCNPJEmpresaAtual;
-    LHostname := GetHostName;
-    LGUID := GetMachineGUID;
-
-    Log('LCNPJ: ' + LCNPJ);
-    Log('Hostname: ' + LHostname);
-    Log('GUID: ' + LGUID);
+    LHostname := GetTerminalAtual;
+    LGUID := FMachineGUID; // Usar GUID do cache em Registry
 
     if LCNPJ = '' then
     begin
-      Log('SincronizarComGerenciadorLicenca: CNPJ nao informado.');
-      ChangeStatus(lsSemEmpresa, 'CNPJ nao configurado.');
+      Log('SincronizarComGerenciadorLicenca: CNPJ não informado.');
+      ChangeStatus(lsSemEmpresa, 'CNPJ não configurado.');
       Exit(False);
     end;
 
-    // Validar Passport via API
-    if not ValidarPassportEmpresa(LCNPJ, LHostname, LGUID) then
+    // Validar Passport via API (incluindo versões FBX e PDV opcionais)
+    if not FAPIHelper.ValidarPassport(LCNPJ, LHostname, LGUID, FVersaoFBX, FVersaoPDV) then
     begin
-      Log('Erro ao validar Passport via API.');
-      ChangeStatus(lsSemConexaoWeb, 'Falha ao validar Passport na API.');
+      Log('Erro ao validar Passport via API: ' + FAPIHelper.GetUltimoErro);
+      
+      // ===== LÓGICA DE TOLERÂNCIA (como em uDMPassport) =====
+      // Se não conseguiu conectar, mas já teve sucesso antes, pode dar uma tolerância
+      
+      // Se a data do último sucesso foi hoje, passa
+      if (GetDataUltimoGetSucesso = DATE) then
+      begin
+        Log('Último sync foi hoje. Continuando com tolerância de cache.');
+        ChangeStatus(lsOk, 'Usando cache local (último sync: hoje).');
+        Exit(True);
+      end;
+      
+      // Se está dentro da tolerância de dias, deixa passar
+      if (GetDiasUltimoGetSucesso < FDiasToleranciaCache) then
+      begin
+        Log(Format('Último sync foi há %d dias. Continuando com tolerância (limite: %d dias).',
+          [GetDiasUltimoGetSucesso, FDiasToleranciaCache]));
+        ChangeStatus(lsOk, Format('Usando cache local (último sync: %d dias atrás).',
+          [GetDiasUltimoGetSucesso]));
+        Exit(True);
+      end;
+      
+      // Senão, bloqueia
+      Log(Format('Último sync foi há %d dias. Bloqueando (tolerância: %d dias).',
+        [GetDiasUltimoGetSucesso, FDiasToleranciaCache]));
+      ChangeStatus(lsSemConexaoWeb, 'Sem conexão com API. Período de tolerância expirado.');
       Exit(False);
     end;
 
-    // Se chegou aqui, sincronizacao foi bem-sucedida
+    // Se chegou aqui, sincronização foi bem-sucedida
     FUltimaSincronizacao := Now;
-    Log('Sincronizacao bem-sucedida!');
-    ChangeStatus(lsOk, 'Sincronizacao concluida com sucesso via API.');
+    SetDataUltimoGetSucesso; // Armazenar timestamp de sucesso
+    ChangeStatus(lsOk, 'Sincronização concluída com sucesso via API.');
     Result := True;
 
   except
     on E: Exception do
     begin
-      Log('Erro ao sincronizar com gerenciador de licencas: ' + E.Message);
+      Log('Erro ao sincronizar com gerenciador de licenças: ' + E.Message);
       ChangeStatus(lsSemConexaoWeb, E.Message);
       Result := False;
     end;
@@ -808,172 +826,62 @@ end;
 function TEmpresaLicencaManager.ValidarLicencaAtual: Boolean;
 var
   Msg: string;
-  LBookmark: TBookmark;
-  LCNPJAtual: string;
-  LResultadoIndividual: Boolean;
-  LTodosCNPJsValidos: Boolean;
-  LContadorCNPJs: Integer;
-  LContadorValidos: Integer;
 begin
   Result := False;
 
-  Log('ValidarLicencaAtual: Iniciando validação de TODOS os CNPJs...');
-
   if dados.qryEmpresa.IsEmpty then
   begin
-    Log('ValidarLicencaAtual: ERRO - Nenhuma empresa cadastrada.');
     ChangeStatus(lsSemEmpresa, 'Nenhuma empresa cadastrada.');
     Exit(False);
   end;
 
-  // Salvar posição atual
-  LBookmark := dados.qryEmpresa.GetBookmark;
-  LTodosCNPJsValidos := True;
-  LContadorCNPJs := 0;
-  LContadorValidos := 0;
+  // 1) Checa validade
+  if LicencaEstaVencida(Msg) then
+  begin
+    ChangeStatus(lsLicencaVencida, Msg);
+    ShowMessage(Msg);
+    Exit(False);
+  end;
 
+  // 2) Checa bloqueio
+  if LicencaEstaBloqueada(Msg) then
+  begin
+    ChangeStatus(lsBloqueado, Msg);
+    ShowMessage(Msg);
+    Exit(False);
+  end;
+
+  // 3) Checa NTERM / terminais
+  if not ValidarTerminais then
+  begin
+    ChangeStatus(lsErroTerminal, 'Quantidade de terminais excedida.');
+    ShowMessage('Quantidade de terminais excedida. Verifique sua licença.');
+    Exit(False);
+  end;
+
+  // 4) Anti-fraude NSERIE (opcional, mas recomendável)
+  if not ValidarNSerieAntiFraude then
+  begin
+    ChangeStatus(lsErroNSerie,
+      'Número de série do equipamento não confere com a licença.');
+    ShowMessage('Número de série do equipamento não confere com a licença.');
+    Exit(False);
+  end;
+
+  // 5) Deixa sua validação original rodar (ChecaValidade)
   try
-    // Ir para o primeiro registro
-    dados.qryEmpresa.First;
-
-    while not dados.qryEmpresa.Eof do
+    dados.ChecaValidade; // SUA rotina já pronta
+  except
+    on E: Exception do
     begin
-      Inc(LContadorCNPJs);
-      LCNPJAtual := dados.qryEmpresaCNPJ.AsString;
-      
-      Log('');
-      Log('═══════════════════════════════════════════════════════════');
-      Log('ValidarLicencaAtual: [' + IntToStr(LContadorCNPJs) + '] Validando CNPJ: ' + LCNPJAtual);
-      Log('═══════════════════════════════════════════════════════════');
-
-      LResultadoIndividual := True;
-
-      // 1) Checa validade
-      Log('  [1/5] Checando se licença está vencida...');
-      if LicencaEstaVencida(Msg) then
-      begin
-        Log('  ❌ FALHA - Licença vencida: ' + Msg);
-        LResultadoIndividual := False;
-        LTodosCNPJsValidos := False;
-      end
-      else
-      begin
-        Log('  ✅ Licença não vencida - Campo DATA_VALIDADE OK');
-      end;
-
-      // 2) Checa bloqueio
-      if LResultadoIndividual then
-      begin
-        Log('  [2/5] Checando se licença está bloqueada...');
-        if LicencaEstaBloqueada(Msg) then
-        begin
-          Log('  ❌ FALHA - Licença bloqueada: ' + Msg);
-          LResultadoIndividual := False;
-          LTodosCNPJsValidos := False;
-        end
-        else
-        begin
-          Log('  ✅ Licença não bloqueada - Campo CSSENHA OK');
-        end;
-      end;
-
-      // 3) Checa NTERM / terminais
-      if LResultadoIndividual then
-      begin
-        Log('  [3/5] Checando limite de terminais...');
-        if not ValidarTerminais then
-        begin
-          Log('  ❌ FALHA - Quantidade de terminais excedida');
-          LResultadoIndividual := False;
-          LTodosCNPJsValidos := False;
-        end
-        else
-        begin
-          Log('  ✅ Terminais válidos - Dentro do limite NTERM');
-        end;
-      end;
-
-      // 4) Anti-fraude NSERIE
-      if LResultadoIndividual then
-      begin
-        Log('  [4/5] Checando número de série contra fraude...');
-        if not ValidarNSerieAntiFraude then
-        begin
-          Log('  ❌ FALHA - Número de série não confere');
-          LResultadoIndividual := False;
-          LTodosCNPJsValidos := False;
-        end
-        else
-        begin
-          Log('  ✅ Número de série válido - Serial da máquina confere');
-        end;
-      end;
-
-      // 5) ChecaValidade
-      if LResultadoIndividual then
-      begin
-        Log('  [5/5] Executando ChecaValidade (rotina original)...');
-        try
-          dados.ChecaValidade;
-          Log('  ✅ ChecaValidade passou');
-        except
-          on E: Exception do
-          begin
-            Log('  ❌ FALHA em ChecaValidade: ' + E.Message);
-            Log('      Classe da exceção: ' + E.ClassName);
-            LResultadoIndividual := False;
-            LTodosCNPJsValidos := False;
-          end;
-        end;
-      end;
-
-      // Registrar resultado
-      if LResultadoIndividual then
-      begin
-        Log('ValidarLicencaAtual: ✅ CNPJ [' + LCNPJAtual + '] - VÁLIDO');
-        Inc(LContadorValidos);
-      end
-      else
-        Log('ValidarLicencaAtual: ❌ CNPJ [' + LCNPJAtual + '] - INVÁLIDO');
-
-      Log('');
-
-      // Próximo registro
-      dados.qryEmpresa.Next;
+      ChangeStatus(lsErroGeral, 'Erro em ChecaValidade: ' + E.Message);
+      ShowMessage('Erro ao validar licença: ' + E.Message);
+      Exit(False);
     end;
-
-    // Restaurar posição
-    if LBookmark <> nil then
-      dados.qryEmpresa.GotoBookmark(LBookmark);
-
-  finally
-    if LBookmark <> nil then
-      dados.qryEmpresa.FreeBookmark(LBookmark);
   end;
 
-  // Resumo final
-  Log('═══════════════════════════════════════════════════════════');
-  Log('RESUMO FINAL DA VALIDAÇÃO');
-  Log('═══════════════════════════════════════════════════════════');
-  Log('Total de CNPJs validados: ' + IntToStr(LContadorCNPJs));
-  Log('CNPJs válidos: ' + IntToStr(LContadorValidos));
-  Log('CNPJs inválidos: ' + IntToStr(LContadorCNPJs - LContadorValidos));
-  Log('');
-
-  if LTodosCNPJsValidos and (LContadorCNPJs > 0) then
-  begin
-    Log('ValidarLicencaAtual: ✅✅✅ TODAS AS LICENÇAS VÁLIDAS!');
-    ChangeStatus(lsOk, 'Todas as licenças válidas.');
-    Result := True;
-  end
-  else
-  begin
-    Log('ValidarLicencaAtual: ❌ PELO MENOS UMA LICENÇA INVÁLIDA!');
-    ChangeStatus(lsErroGeral, 'Uma ou mais licenças inválidas.');
-    Result := False;
-  end;
-
-  Log('═══════════════════════════════════════════════════════════');
+  ChangeStatus(lsOk, 'Licença válida.');
+  Result := True;
   AtualizaStatusBar;
 end;
 
@@ -1056,150 +964,10 @@ end;
 
 function TEmpresaLicencaManager.GetUltimoErro: string;
 begin
-  // Retorna primeiro o erro próprio (FUltimoErro), depois o da API
-  if FUltimoErro <> '' then
-    Result := FUltimoErro
-  else if Assigned(FAPIHelper) then
+  if Assigned(FAPIHelper) then
     Result := FAPIHelper.GetUltimoErro
   else
     Result := 'Gerenciador de API não inicializado';
-end;
-
-function TEmpresaLicencaManager.GetDebugInfo: string;
-begin
-  Result := '';
-  if Assigned(FAPIHelper) then
-  begin
-    Result := 'Status Code: ' + IntToStr(FAPIHelper.GetUltimoStatusCode) + ' | ';
-    Result := Result + 'Erro API: ' + FAPIHelper.GetUltimoErro + ' | ';
-  end;
-  Result := Result + 'FUltimoErro: ' + FUltimoErro;
-end;
-
-function TEmpresaLicencaManager.VerificarCNPJNaAPI(const ACNPJ: string): Boolean;
-var
-  LCNPJLimpo: string;
-  LResponse: string;
-  LJSON: TJSONObject;
-  LJSONValue: TJSONValue;
-  LArray: TJSONArray;
-begin
-  Result := False;
-  FUltimoErro := '';
-  LJSONValue := nil;
-  LArray := nil;
-
-  try
-    // Limpar CNPJ para enviar apenas números
-    LCNPJLimpo := StringReplace(StringReplace(ACNPJ, '.', '', [rfReplaceAll]), '/', '', [rfReplaceAll]);
-
-    if not Assigned(FAPIHelper) then
-    begin
-      Log('    [DEBUG-001] VerificarCNPJNaAPI: FAPIHelper não inicializado.');
-      Exit(False);
-    end;
-
-    Log('    [DEBUG-002] CNPJ original: ' + ACNPJ);
-    Log('    [DEBUG-003] CNPJ limpo: ' + LCNPJLimpo);
-    
-    Log('    [DEBUG-004] Chamando ConsultarPessoaPorCNPJ...');
-    if FAPIHelper.ConsultarPessoaPorCNPJ(LCNPJLimpo, LResponse) then
-    begin
-      Log('    [DEBUG-005] ✓ ConsultarPessoaPorCNPJ retornou TRUE');
-      Log('    [DEBUG-006] Comprimento da resposta: ' + IntToStr(Length(LResponse)));
-      
-      if Length(LResponse) > 300 then
-        Log('    [DEBUG-007] Resposta (primeiros 300 chars): ' + Copy(LResponse, 1, 300))
-      else
-        Log('    [DEBUG-007] Resposta completa: ' + LResponse);
-      
-      if Trim(LResponse) = '' then
-      begin
-        Log('    [DEBUG-008] Resposta está VAZIA');
-        Result := False;
-      end
-      else
-      begin
-        Log('    [DEBUG-009] Tentando fazer parse JSON...');
-        try
-          LJSONValue := TJSONObject.ParseJSONValue(LResponse);
-          
-          if Assigned(LJSONValue) then
-          begin
-            Log('    [DEBUG-010] ✓ Parse bem-sucedido');
-            
-            // A resposta do endpoint é um objeto JSON com estrutura:
-            // { "status": true/false, "msg": "...", "data": {...} ou null }
-            if LJSONValue is TJSONObject then
-            begin
-              LJSON := TJSONObject(LJSONValue);
-              Log('    [DEBUG-012] É um OBJETO com ' + IntToStr(LJSON.Count) + ' campos');
-              
-              // Verificar se tem campo 'status' - novo formato de resposta
-              if LJSON.ContainsKey('status') then
-              begin
-                Log('    [DEBUG-012a] Detectado novo formato de resposta (com status)');
-                // Novo formato: {status, msg, data}
-                // A pessoa foi encontrada se status=true
-                Result := LJSON.GetValue<Boolean>('status', False);
-                
-                if LJSON.ContainsKey('data') then
-                begin
-                  Log('    [DEBUG-012b] Campo data: ' + IfThen(LJSON.GetValue('data') <> nil, 'presente', 'nulo'));
-                end;
-              end
-              else
-              begin
-                Log('    [DEBUG-012c] Formato antigo (resposta direta do banco)');
-                // Formato antigo: resposta direta é um objeto com dados da pessoa
-                Result := LJSON.Count > 0;
-              end;
-            end
-            else if LJSONValue is TJSONArray then
-            begin
-              LArray := TJSONArray(LJSONValue);
-              Log('    [DEBUG-011] É um ARRAY com ' + IntToStr(LArray.Count) + ' elementos');
-              Result := LArray.Count > 0;
-            end
-            else
-            begin
-              Log('    [DEBUG-013] Tipo desconhecido: ' + LJSONValue.ClassName);
-              Result := False;
-            end;
-          end
-          else
-          begin
-            Log('    [DEBUG-014] ✗ Parse retornou nil');
-            Result := False;
-          end;
-        except
-          on E: Exception do
-          begin
-            Log('    [DEBUG-015] ✗ Exceção em parse: ' + E.Message);
-            Result := False;
-          end;
-        end;
-      end;
-    end
-    else
-    begin
-      Log('    [DEBUG-016] ✗ ConsultarPessoaPorCNPJ retornou FALSE');
-      Log('    [DEBUG-017] Status Code: ' + IntToStr(FAPIHelper.GetUltimoStatusCode));
-      Log('    [DEBUG-018] Erro: ' + FAPIHelper.GetUltimoErro);
-      Log('    [DEBUG-019] Resposta: ' + LResponse);
-      Result := False;
-    end;
-
-  except
-    on E: Exception do
-    begin
-      Log('    [DEBUG-020] ✗ Exceção geral: ' + E.Message);
-      Result := False;
-    end;
-  end;
-  
-  if Assigned(LJSONValue) then
-    FreeAndNil(LJSONValue);
 end;
 
 function TEmpresaLicencaManager.RegistrarEmpresaNoMySQL(const ANome, AFantasia, ACNPJ, AContato, AEmail, ATelefone: string;
@@ -1208,13 +976,8 @@ function TEmpresaLicencaManager.RegistrarEmpresaNoMySQL(const ANome, AFantasia, 
   const AEstado: string = ''; const ACEP: string = ''): Boolean;
 var
   LCNPJLimpo: string;
-  LResponseRaw: string;
-  LJSON: TJSONObject;
-  LStatus: string;
-  LMsg: string;
 begin
   Result := False;
-  FUltimoErro := '';
 
   try
     // Limpar CNPJ para enviar apenas números
@@ -1223,7 +986,6 @@ begin
     if not Assigned(FAPIHelper) then
     begin
       Log('RegistrarEmpresaNoMySQL: FAPIHelper não inicializado.');
-      FUltimoErro := 'FAPIHelper não inicializado';
       Exit(False);
     end;
 
@@ -1234,7 +996,6 @@ begin
        (ABairro = '') or (ACidade = '') or (AEstado = '') or (ACEP = '') then
     begin
       Log('RegistrarEmpresaNoMySQL: Faltam campos obrigatórios.');
-      FUltimoErro := 'Faltam campos obrigatórios para registro';
       Exit(False);
     end;
 
@@ -1256,109 +1017,12 @@ begin
       ACEP            // Obrigatório: CEP
     ) then
     begin
-      Log('RegistrarEmpresaNoMySQL: RegistrarCliente retornou FALSE para: ' + ACNPJ);
-      Log('  Nome=' + ANome);
-      Log('  Fantasia=' + AFantasia);
-      Log('  CNPJ=' + LCNPJLimpo);
-      Log('  Contato=' + AContato);
-      Log('  Email=' + AEmail);
-      Log('  Endereco=' + AEndereco);
-      Log('  Numero=' + ANumero);
-      Log('  Bairro=' + ABairro);
-      Log('  Cidade=' + ACidade);
-      Log('  Estado=' + AEstado);
-      Log('  CEP=' + ACEP);
-      FUltimoErro := 'RegistrarCliente retornou FALSE';
+      Log('RegistrarEmpresaNoMySQL: Erro ao registrar empresa na API: ' + ACNPJ);
+      Log('Erro API: ' + FAPIHelper.GetUltimoErro);
       Exit(False);
     end;
 
-    Log('RegistrarEmpresaNoMySQL: RegistrarCliente retornou TRUE para: ' + ACNPJ);
-
-    // VALIDAR RESPOSTA DA API - VERIFICA SE HOUVE ERRO
-    LResponseRaw := FAPIHelper.GetRegistroResponseRaw;
-    Log('RegistrarEmpresaNoMySQL: Resposta bruta da API (comprimento=' + IntToStr(Length(LResponseRaw)) + '): [' + LResponseRaw + ']');
-    Log('  Erro HTTP da API: [' + FAPIHelper.GetUltimoErro + ']');
-    
-    // Tentar fazer parse da resposta JSON para validar status
-    if Trim(LResponseRaw) <> '' then
-    begin
-      try
-        LJSON := TJSONObject.ParseJSONValue(LResponseRaw) as TJSONObject;
-        if Assigned(LJSON) then
-        try
-          Log('  JSON parseado com sucesso');
-          
-          // Verificar campo "status" ou "erro"
-          if LJSON.TryGetValue<string>('status', LStatus) then
-          begin
-            Log('  Status da API: [' + LStatus + ']');
-            // Status = 'ERRO' indica falha
-            if LowerCase(Trim(LStatus)) = 'erro' then
-            begin
-              if LJSON.TryGetValue<string>('msg', LMsg) then
-              begin
-                FUltimoErro := LMsg;
-                Log('  Campo msg encontrado: [' + LMsg + ']');
-              end
-              else if LJSON.TryGetValue<string>('message', LMsg) then
-              begin
-                FUltimoErro := LMsg;
-                Log('  Campo message encontrado: [' + LMsg + ']');
-              end
-              else
-              begin
-                FUltimoErro := 'Erro retornado pela API sem mensagem detalhada';
-                Log('  Nenhum campo msg/message encontrado');
-              end;
-              
-              Log('  ERRO na API: ' + FUltimoErro);
-              Exit(False);
-            end;
-          end
-          else
-          begin
-            Log('  Campo status nao encontrado no JSON');
-          end;
-          
-          // Verificar se há campo "erro" com mensagem de erro
-          if LJSON.TryGetValue<string>('erro', LMsg) then
-          begin
-            FUltimoErro := LMsg;
-            Log('  Campo erro encontrado: ' + LMsg);
-            Exit(False);
-          end;
-        finally
-          LJSON.Free;
-        end;
-      except
-        on E: Exception do
-        begin
-          Log('  Aviso ao fazer parse da resposta: ' + E.ClassName + ' - ' + E.Message);
-          // Continua mesmo se falhar parse - pode ser sucesso sem JSON válido
-        end;
-      end;
-    end
-    else
-    begin
-      Log('  Resposta vazia da API!');
-      Log('  Verificando se houve erro HTTP...');
-      Log('  Erro: [' + FAPIHelper.GetUltimoErro + ']');
-      
-      // Se a resposta está vazia, algo deu errado
-      if FAPIHelper.GetUltimoErro <> '' then
-      begin
-        FUltimoErro := 'Resposta vazia - Erro: ' + FAPIHelper.GetUltimoErro;
-        Log('  FALHA: ' + FUltimoErro);
-        Exit(False);
-      end
-      else
-      begin
-        Log('  Sem erro HTTP - assumindo sucesso');
-      end;
-    end;
-
-    // Se a requisição foi bem-sucedida e API respondeu OK, gravar localmente também
-    // GRAVAR NA TABELA PESSOA_LICENCAS (qryEmpresa)
+    // Se a requisição foi bem-sucedida, gravar localmente também
     dados.qryEmpresa.Edit;
     dados.qryEmpresaCNPJ.AsString := ACNPJ;
     dados.qryEmpresaRAZAO.AsString := ANome;
@@ -1386,55 +1050,15 @@ begin
     
     dados.qryEmpresaTIPO.AsString := 'JURIDICA';
     dados.qryEmpresa.Post;
-    Log('  Dados salvos em PESSOA_LICENCAS');
-
-    // GRAVAR NA TABELA PESSOAS (qryPessoas)
-    // Procurar se pessoa já existe nesta tabela
-    dados.qryPessoas.Locate('CNPJ', ACNPJ, []);
-    
-    if dados.qryPessoas.Eof then
-    begin
-      // Inserir novo registro na tabela PESSOAS
-      dados.qryPessoas.Insert;
-    end
-    else
-    begin
-      // Atualizar registro existente
-      dados.qryPessoas.Edit;
-    end;
-    
-    // Preencher os campos da tabela PESSOAS
-    dados.qryPessoasCNPJ.AsString := ACNPJ;
-    dados.qryPessoasRAZAO.AsString := ANome;
-    dados.qryPessoasFANTASIA.AsString := AFantasia;
-    dados.qryPessoasENDERECO.AsString := AEndereco;
-    dados.qryPessoasNUMERO.AsString := ANumero;
-    
-    if AComplemento <> '' then
-      dados.qryPessoasCOMPLEMENTO.AsString := AComplemento;
-    if ABairro <> '' then
-      dados.qryPessoasBAIRRO.AsString := ABairro;
-    if ACidade <> '' then
-      dados.qryPessoasCODMUN.AsString := ACidade;
-    if AEstado <> '' then
-      dados.qryPessoasUF.AsString := AEstado;
-    if ACEP <> '' then
-      dados.qryPessoasCEP.AsString := ACEP;
-    
-    dados.qryPessoas.Post;
-    Log('  Dados salvos em PESSOAS');
-    
     dados.Conexao.CommitRetaining;
 
     Log('Empresa registrada com sucesso na API e cadastrada localmente: ' + ACNPJ);
-    FUltimoErro := '';
     Result := True;
 
   except
     on E: Exception do
     begin
       Log('Erro ao registrar empresa: ' + E.Message);
-      FUltimoErro := E.Message;
       Result := False;
     end;
   end;

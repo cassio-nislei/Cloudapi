@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
-  System.Classes, Vcl.Graphics, aCBRUtil,
+  System.Classes, System.StrUtils, Vcl.Graphics, aCBRUtil,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Data.DB, Vcl.Grids, Vcl.DBGrids,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Buttons, FireDAC.Stan.Intf,
   FireDAC.Stan.Option, FireDAC.Stan.Param, FireDAC.Stan.Error, FireDAC.DatS,
@@ -427,7 +427,9 @@ type
     procedure btnRegistrarEmpresaClick(Sender: TObject);
   private
     { Private declarations }
+    FLogList: TStringList;
     procedure TentarRegistrarEmpresaNaAPI;
+    procedure LicencaManagerLog(Sender: TObject; const AMsg: string);
   public
     Tela: string;
     Cnpj, inscricao: string;
@@ -441,7 +443,7 @@ implementation
 
 {$R *.dfm}
 
-uses Udados, uRotinasComuns, uEmpresaLicencaManager;
+uses Udados, uRotinasComuns;
 
 procedure TfrmEmpresa.btnSairClick(Sender: TObject);
 begin
@@ -1600,152 +1602,483 @@ begin
     end;
   end;
 end;
-end;
 
 procedure TfrmEmpresa.btnValidarPassportClick(Sender: TObject);
 var
   FLicencaManager: TEmpresaLicencaManager;
   LCNPJ, LHostname, LGUID: string;
+  LDebugMsg: string;
+  LLogPath: string;
+  LLog: TStringList;
 begin
+  LLog := TStringList.Create;
   try
-    FLicencaManager := TEmpresaLicencaManager.Create(Self);
     try
-      LCNPJ := qryEmpresaCNPJ.AsString;
-      if LCNPJ = '' then
-      begin
-        ShowMessage('É necessário preencher o CNPJ da empresa.');
-        Exit;
-      end;
+      LLogPath := ExtractFilePath(Application.ExeName) + 'teste_passport_debug.log';
+      
+      // Adicionar cabeçalho de teste
+      LLog.Add('=== TESTE PASSPORT VALIDATION - ' + FormatDateTime('dd/mm/yyyy hh:mm:ss', Now) + ' ===');
+      LLog.Add('');
+      
+      FLicencaManager := TEmpresaLicencaManager.Create(Self);
+      try
+        LCNPJ := DBEdit9.Text;//qryEmpresaCNPJ.AsString;
+        LLog.Add('1. CNPJ digitado: [' + LCNPJ + ']');
+        
+        if LCNPJ = '' then
+        begin
+          LLog.Add('ERRO: CNPJ vazio!');
+          LLog.SaveToFile(LLogPath);
+          ShowMessage('É necessário preencher o CNPJ da empresa.');
+          Exit;
+        end;
 
-      LHostname := FLicencaManager.GetHostName;
-      LGUID := FLicencaManager.GetMachineGUID;
+        LHostname := FLicencaManager.GetHostName;
+        LLog.Add('2. Hostname obtido: [' + LHostname + ']');
+        
+        LGUID := FLicencaManager.GetMachineGUID;
+        LLog.Add('3. GUID obtido: [' + LGUID + ']');
+        LLog.Add('');
+        LLog.Add('=== CHAMANDO ValidarPassportEmpresa ===');
 
-      if FLicencaManager.ValidarPassportEmpresa(LCNPJ, LHostname, LGUID) then
-      begin
-        ShowMessage('✅ Passport validado com sucesso!' + sLineBreak +
-                    'CNPJ: ' + LCNPJ + sLineBreak +
-                    'Hostname: ' + LHostname + sLineBreak +
-                    'GUID: ' + LGUID);
-      end
-      else
-      begin
-        ShowMessage('❌ Falha na validação de Passport:' + sLineBreak +
-                    FLicencaManager.GetUltimoErro);
+        if FLicencaManager.ValidarPassportEmpresa(LCNPJ, LHostname, LGUID) then
+        begin
+          LLog.Add('✅ SUCESSO: Passport validado com sucesso!');
+          LLog.SaveToFile(LLogPath);
+          ShowMessage('✅ Passport validado com sucesso!' + sLineBreak +
+                      'CNPJ: ' + LCNPJ + sLineBreak +
+                      'Hostname: ' + LHostname + sLineBreak +
+                      'GUID: ' + LGUID);
+        end
+        else
+        begin
+          LDebugMsg := FLicencaManager.GetUltimoErro;
+          LLog.Add('❌ FALHA: Validação de Passport falhou!');
+          LLog.Add('Erro retornado: [' + LDebugMsg + ']');
+          LLog.SaveToFile(LLogPath);
+          ShowMessage('❌ Falha na validação de Passport:' + sLineBreak +
+                      'Erro: ' + LDebugMsg + sLineBreak + sLineBreak +
+                      'Log salvo em: ' + LLogPath);
+        end;
+      finally
+        FLicencaManager.Free;
       end;
-    finally
-      FLicencaManager.Free;
+    except
+      on E: Exception do
+      begin
+        LLog.Add('❌ EXCEPTION: ' + E.ClassName);
+        LLog.Add('Mensagem: ' + E.Message);
+        LLog.SaveToFile(LLogPath);
+        ShowMessage('Erro ao validar Passport: ' + E.Message + sLineBreak + sLineBreak +
+                    'Log salvo em: ' + LLogPath);
+      end;
     end;
-  except
-    on E: Exception do
-      ShowMessage('Erro ao validar Passport: ' + E.Message);
+  finally
+    LLog.Free;
   end;
 end;
 
 procedure TfrmEmpresa.btnSincronizarClick(Sender: TObject);
 var
   FLicencaManager: TEmpresaLicencaManager;
+  LLog: TStringList;
+  LLogPath: string;
 begin
+  LLog := TStringList.Create;
   try
-    FLicencaManager := TEmpresaLicencaManager.Create(Self);
     try
-      if FLicencaManager.SincronizarComGerenciadorLicenca then
-      begin
-        ShowMessage('✅ Sincronização bem-sucedida!' + sLineBreak +
-                    'Data: ' + DateTimeToStr(FLicencaManager.UltimaSincronizacao));
-      end
-      else
-      begin
-        ShowMessage('❌ Falha na sincronização.' + sLineBreak +
-                    'Verifique a conexão com a API.');
+      LLogPath := ExtractFilePath(Application.ExeName) + 'teste_sincronizar.log';
+      
+      LLog.Add('=== TESTE SINCRONIZAR LICENCA - ' + FormatDateTime('dd/mm/yyyy hh:mm:ss', Now) + ' ===');
+      LLog.Add('');
+      
+      FLicencaManager := TEmpresaLicencaManager.Create(Self);
+      try
+        // Conectar evento de log
+        FLicencaManager.OnLog := LicencaManagerLog;
+        
+        LLog.Add('1. Gerenciador de Licenca criado');
+        LLog.Add('');
+        LLog.Add('=== CHAMANDO SincronizarComGerenciadorLicenca ===');
+        LLog.Add('');
+        
+        if FLicencaManager.SincronizarComGerenciadorLicenca then
+        begin
+          LLog.Add('SUCESSO: Sincronizacao bem-sucedida!');
+          LLog.Add('Data do Sincronismo: ' + DateTimeToStr(FLicencaManager.UltimaSincronizacao));
+          
+          // Adicionar logs capturados
+          if Assigned(FLogList) and (FLogList.Count > 0) then
+          begin
+            LLog.Add('');
+            LLog.Add('=== DETALHES DA SINCRONIZACAO ===');
+            LLog.AddStrings(FLogList);
+          end;
+          
+          LLog.SaveToFile(LLogPath);
+          ShowMessage('SUCESSO: Sincronizacao bem-sucedida!' + sLineBreak +
+                      'Data: ' + DateTimeToStr(FLicencaManager.UltimaSincronizacao) + sLineBreak + sLineBreak +
+                      'Log salvo em: ' + LLogPath);
+        end
+        else
+        begin
+          LLog.Add('FALHA: Sincronizacao falhou!');
+          
+          // Adicionar logs capturados com detalhes do erro
+          if Assigned(FLogList) and (FLogList.Count > 0) then
+          begin
+            LLog.Add('');
+            LLog.Add('=== DETALHES DO ERRO ===');
+            LLog.AddStrings(FLogList);
+          end;
+          
+          LLog.SaveToFile(LLogPath);
+          ShowMessage('FALHA: Sincronizacao falhou!' + sLineBreak + sLineBreak +
+                      'Possiveis motivos:' + sLineBreak +
+                      '- Sem conexao com a internet' + sLineBreak +
+                      '- API ADMCloud indisponivel' + sLineBreak +
+                      '- CNPJ nao cadastrado' + sLineBreak +
+                      '- Credenciais invalidas' + sLineBreak + sLineBreak +
+                      'Verifique a conexao com a API.' + sLineBreak +
+                      'Log salvo em: ' + LLogPath);
+        end;
+      finally
+        FLicencaManager.Free;
       end;
-    finally
-      FLicencaManager.Free;
+    except
+      on E: Exception do
+      begin
+        LLog.Add('EXCEPTION: ' + E.ClassName);
+        LLog.Add('Mensagem: ' + E.Message);
+        LLog.SaveToFile(LLogPath);
+        ShowMessage('Erro ao sincronizar licenca: ' + E.Message + sLineBreak + sLineBreak +
+                    'Log salvo em: ' + LLogPath);
+      end;
     end;
-  except
-    on E: Exception do
-      ShowMessage('Erro ao sincronizar: ' + E.Message);
+  finally
+    LLog.Free;
   end;
+end;
+
+procedure TfrmEmpresa.LicencaManagerLog(Sender: TObject; const AMsg: string);
+begin
+  if Assigned(FLogList) then
+    FLogList.Add(AMsg);
 end;
 
 procedure TfrmEmpresa.btnValidarLicencaClick(Sender: TObject);
 var
   FLicencaManager: TEmpresaLicencaManager;
+  LLog: TStringList;
+  LLogPath: string;
+  LMensagemErro: string;
+  i: Integer;
+  LCNPJAtual: string;
+  LErroAtual: string;
 begin
+  FLogList := TStringList.Create;
+  LLog := TStringList.Create;
   try
-    FLicencaManager := TEmpresaLicencaManager.Create(Self);
     try
-      if FLicencaManager.ValidarLicencaAtual then
-      begin
-        ShowMessage('✅ Licença válida!' + sLineBreak +
-                    'Última sincronização: ' + DateTimeToStr(FLicencaManager.UltimaSincronizacao) + sLineBreak +
-                    'GUID: ' + FLicencaManager.GetMachineGUID);
-      end
-      else
-      begin
-        ShowMessage('❌ Licença inválida ou vencida!' + sLineBreak +
-                    'Contate o administrador do sistema.');
+      LLogPath := ExtractFilePath(Application.ExeName) + 'teste_licenca_debug.log';
+      LMensagemErro := '';
+      
+      LLog.Add('=== TESTE VALIDACAO DE LICENCA - ' + FormatDateTime('dd/mm/yyyy hh:mm:ss', Now) + ' ===');
+      LLog.Add('');
+      
+      FLicencaManager := TEmpresaLicencaManager.Create(Self);
+      try
+        // Conectar evento de log
+        FLicencaManager.OnLog := LicencaManagerLog;
+        
+        LLog.Add('1. Gerenciador de Licenca criado');
+        LLog.Add('');
+        LLog.Add('=== CHAMANDO ValidarLicencaAtual ===');
+        LLog.Add('');
+        
+        if FLicencaManager.ValidarLicencaAtual then
+        begin
+          LLog.Add('SUCESSO: Licenca valida!');
+          LLog.Add('Ultima sincronizacao: ' + DateTimeToStr(FLicencaManager.UltimaSincronizacao));
+          LLog.Add('GUID: ' + FLicencaManager.GetMachineGUID);
+          
+          // Adicionar logs capturados
+          if Assigned(FLogList) and (FLogList.Count > 0) then
+          begin
+            LLog.Add('');
+            LLog.Add('=== DETALHES DA VALIDACAO ===');
+            LLog.AddStrings(FLogList);
+          end;
+          
+          LLog.SaveToFile(LLogPath);
+          ShowMessage('SUCESSO: Licenca valida!' + sLineBreak +
+                      'Ultima sincronizacao: ' + DateTimeToStr(FLicencaManager.UltimaSincronizacao) + sLineBreak +
+                      'GUID: ' + FLicencaManager.GetMachineGUID);
+        end
+        else
+        begin
+          LLog.Add('FALHA: Licenca invalida ou vencida!');
+          
+          // Extrair detalhes de erros dos logs
+          LCNPJAtual := '';
+          LErroAtual := '';
+          
+          if Assigned(FLogList) and (FLogList.Count > 0) then
+          begin
+            LLog.Add('');
+            LLog.Add('=== DETALHES DA VALIDACAO ===');
+            LLog.AddStrings(FLogList);
+            
+            // Processar logs para extrair CNPJs e erros
+            for i := 0 to FLogList.Count - 1 do
+            begin
+              if Pos('Validando CNPJ:', FLogList[i]) > 0 then
+              begin
+                // Extrair CNPJ
+                LCNPJAtual := Trim(Copy(FLogList[i], Pos('CNPJ:', FLogList[i]) + 5, 20));
+                LErroAtual := '';
+              end
+              else if (Pos('FALHA', FLogList[i]) > 0) and (LCNPJAtual <> '') then
+              begin
+                // Capturar tipo de erro
+                if Pos('vencida', FLogList[i]) > 0 then
+                  LErroAtual := 'Licenca vencida'
+                else if Pos('bloqueada', FLogList[i]) > 0 then
+                  LErroAtual := 'Licenca bloqueada'
+                else if Pos('terminais', FLogList[i]) > 0 then
+                begin
+                  LErroAtual := 'Limite de terminais excedido';
+                  // Tentar extrair o valor atual/limite
+                  if Pos('Em uso=', FLogList[i]) > 0 then
+                    LErroAtual := LErroAtual + ' - ' + Trim(Copy(FLogList[i], Pos('Em uso=', FLogList[i]), 50));
+                end
+                else if Pos('serie', FLogList[i]) > 0 then
+                  LErroAtual := 'Numero de serie invalido'
+                else if Pos('ChecaValidade', FLogList[i]) > 0 then
+                  LErroAtual := 'Erro em ChecaValidade';
+                
+                if LErroAtual <> '' then
+                  LMensagemErro := LMensagemErro + sLineBreak + '- CNPJ ' + LCNPJAtual + ': ' + LErroAtual;
+              end;
+            end;
+          end;
+          
+          LLog.SaveToFile(LLogPath);
+          
+          // Mostrar mensagem detalhada
+          if LMensagemErro <> '' then
+            ShowMessage('FALHA: Uma ou mais licencas sao invalidas!' + sLineBreak + sLineBreak +
+                        'Empresas com problemas:' + LMensagemErro + sLineBreak + sLineBreak +
+                        'Log completo em: ' + LLogPath)
+          else
+            ShowMessage('FALHA: Licenca invalida ou vencida!' + sLineBreak +
+                        'Contate o administrador do sistema.' + sLineBreak + sLineBreak +
+                        'Log salvo em: ' + LLogPath);
+        end;
+      finally
+        FLicencaManager.Free;
       end;
-    finally
-      FLicencaManager.Free;
+    except
+      on E: Exception do
+      begin
+        LLog.Add('EXCEPTION: ' + E.ClassName);
+        LLog.Add('Mensagem: ' + E.Message);
+        LLog.SaveToFile(LLogPath);
+        ShowMessage('Erro ao validar licenca: ' + E.Message + sLineBreak + sLineBreak +
+                    'Log salvo em: ' + LLogPath);
+      end;
     end;
-  except
-    on E: Exception do
-      ShowMessage('Erro ao validar licença: ' + E.Message);
+  finally
+    LLog.Free;
+    FLogList.Free;
   end;
 end;
 
 procedure TfrmEmpresa.btnRegistrarEmpresaClick(Sender: TObject);
 var
   FLicencaManager: TEmpresaLicencaManager;
-  LNome, LFantasia, LCNPJ, LContato, LEmail, LTelefone: string;
-  LEndereco, LNumero, LBairro, LCidade, LEstado, LCEP: string;
+  LLog: TStringList;
+  LLogPath: string;
+  LBookmark: TBookmark;
+  LCNPJ: string;
+  LCNPJsRegistrados: Integer;
+  LCNPJsFalhados: Integer;
+  LCNPJsJaRegistrados: Integer;
+  LMsgErros: string;
+  LMsgJaRegistrados: string;
+  LNome, LFantasia, LEmail, LTelefone, LEndereco, LNumero, LBairro, LCidade, LEstado, LCEP: string;
+  LJaExiste: Boolean;
 begin
+  LLog := TStringList.Create;
   try
-    FLicencaManager := TEmpresaLicencaManager.Create(Self);
     try
-      LNome := qryEmpresaRAZAO.AsString;
-      LFantasia := qryEmpresaFANTASIA.AsString;
-      LCNPJ := qryEmpresaCNPJ.AsString;
-      LContato := '';
-      LEmail := qryEmpresaEMAIL.AsString;
-      LTelefone := qryEmpresaFONE.AsString;
-      LEndereco := qryEmpresaENDERECO.AsString;
-      LNumero := qryEmpresaNUMERO.AsString;
-      LBairro := qryEmpresaBAIRRO.AsString;
-      LCidade := qryEmpresaCIDADE.AsString;
-      LEstado := qryEmpresaUF.AsString;
-      LCEP := qryEmpresaCEP.AsString;
-
-      if (LNome = '') or (LFantasia = '') or (LCNPJ = '') or (LEmail = '') or (LTelefone = '') then
+      LLogPath := ExtractFilePath(Application.ExeName) + 'teste_registrar_empresa.log';
+      
+      LLog.Add('=== TESTE REGISTRAR TODAS AS EMPRESAS DA BASE - ' + FormatDateTime('dd/mm/yyyy hh:mm:ss', Now) + ' ===');
+      LLog.Add('');
+      
+      // Garantir que a query está aberta
+      if not dados.qryEmpresa.Active then
       begin
-        ShowMessage('⚠️ Preencha todos os campos obrigatórios:' + sLineBreak +
-                    '- Razão Social' + sLineBreak +
-                    '- Nome Fantasia' + sLineBreak +
-                    '- CNPJ' + sLineBreak +
-                    '- Email' + sLineBreak +
-                    '- Telefone');
-        Exit;
+        LLog.Add('AVISO: Query nao estava ativa, abrindo...');
+        dados.qryEmpresa.Open;
       end;
-
-      if FLicencaManager.RegistrarEmpresaNoMySQL(
-        LNome, LFantasia, LCNPJ, LContato, LEmail, LTelefone,
-        '', LEndereco, LNumero, '', LBairro, LCidade, LEstado, LCEP) then
-      begin
-        ShowMessage('✅ Empresa registrada com sucesso!' + sLineBreak +
-                    'CNPJ: ' + LCNPJ + sLineBreak +
-                    'Nome: ' + LNome);
-      end
-      else
-      begin
-        ShowMessage('❌ Falha ao registrar empresa:' + sLineBreak +
-                    FLicencaManager.GetUltimoErro);
+      
+      LLog.Add('Total de registros na query: ' + IntToStr(dados.qryEmpresa.RecordCount));
+      LLog.Add('');
+      
+      FLicencaManager := TEmpresaLicencaManager.Create(Self);
+      try
+        // Verificar e registrar TODOS os CNPJs da base
+        LLog.Add('Verificando e registrando todas as empresas da base de dados...');
+        LLog.Add('');
+        
+        LCNPJsRegistrados := 0;
+        LCNPJsFalhados := 0;
+        LCNPJsJaRegistrados := 0;
+        LMsgErros := '';
+        LMsgJaRegistrados := '';
+        LBookmark := dados.qryEmpresa.GetBookmark;
+        
+        try
+          dados.qryEmpresa.First;
+          while not dados.qryEmpresa.Eof do
+          begin
+            LCNPJ := Trim(dados.qryEmpresaCNPJ.AsString);
+            
+            if LCNPJ <> '' then
+            begin
+              LLog.Add('[' + IntToStr(LCNPJsRegistrados + LCNPJsFalhados + LCNPJsJaRegistrados + 1) + '] CNPJ: ' + LCNPJ);
+              
+              // Obter dados do banco
+              LNome := Trim(dados.qryEmpresaRAZAO.AsString);
+              LFantasia := Trim(dados.qryEmpresaFANTASIA.AsString);
+              LEmail := Trim(dados.qryEmpresaEMAIL.AsString);
+              LTelefone := Trim(dados.qryEmpresaFONE.AsString);
+              LEndereco := Trim(dados.qryEmpresaENDERECO.AsString);
+              LNumero := Trim(dados.qryEmpresaNUMERO.AsString);
+              LBairro := Trim(dados.qryEmpresaBAIRRO.AsString);
+              LCidade := Trim(dados.qryEmpresaCIDADE.AsString);
+              LEstado := Trim(dados.qryEmpresaUF.AsString);
+              LCEP := Trim(dados.qryEmpresaCEP.AsString);
+              
+              LLog.Add('    Nome: ' + LNome);
+              LLog.Add('    Email: ' + LEmail);
+              
+              // PASSO 1: VERIFICAR SE JÁ ESTÁ REGISTRADO NA API
+              LLog.Add('    [VERIFICANDO] Testando se CNPJ já existe na API...');
+              LJaExiste := FLicencaManager.VerificarCNPJNaAPI(LCNPJ);
+              LLog.Add('    [RESULTADO] VerificarCNPJNaAPI retornou: ' + IfThen(LJaExiste, 'TRUE (EXISTE)', 'FALSE (NÃO EXISTE)'));
+              LLog.Add('    [DEBUG-INFO] ' + FLicencaManager.GetDebugInfo);
+              
+              // COMENTADO: Teste apenas de VERIFICAÇÃO
+              // -------------------------------------------
+              if LJaExiste then
+              begin
+                Inc(LCNPJsJaRegistrados);
+                LLog.Add('    [OK] CNPJ JÁ ESTÁ REGISTRADO NA API');
+                LMsgJaRegistrados := LMsgJaRegistrados + sLineBreak + '- CNPJ ' + LCNPJ + ': JÁ REGISTRADO';
+              end
+              else
+              begin
+                Inc(LCNPJsFalhados); // Conta como falha porque não encontrou
+                LLog.Add('    [NOVO] CNPJ NÃO ENCONTRADO NA API');
+                LMsgErros := LMsgErros + sLineBreak + '- CNPJ ' + LCNPJ + ': NÃO ENCONTRADO NA API';
+              end;
+              
+              // COMENTADO: Registro será testado depois
+              (* 
+              else
+              begin
+                // PASSO 2: SE NÃO EXISTE, TENTAR REGISTRAR
+                LLog.Add('    [NOVO] CNPJ não encontrado na API - Tentando registrar...');
+                
+                if FLicencaManager.RegistrarEmpresaNoMySQL(
+                  LNome,
+                  LFantasia,
+                  LCNPJ,
+                  IfThen(LNome <> '', LNome, 'Administrativo'),
+                  LEmail,
+                  LTelefone,
+                  '',
+                  LEndereco,
+                  LNumero,
+                  '',
+                  LBairro,
+                  LCidade,
+                  LEstado,
+                  LCEP) then
+                begin
+                  Inc(LCNPJsRegistrados);
+                  LLog.Add('    [SUCESSO] Empresa registrada com sucesso na API');
+                end
+                else
+                begin
+                  Inc(LCNPJsFalhados);
+                  LLog.Add('    [ERRO] Falha ao registrar na API: ' + FLicencaManager.GetUltimoErro);
+                  LMsgErros := LMsgErros + sLineBreak + '- CNPJ ' + LCNPJ + ': ' + FLicencaManager.GetUltimoErro;
+                end;
+              end;
+              *)
+              LLog.Add('');
+            end
+            else
+            begin
+              LLog.Add('  AVISO: CNPJ vazio, pulando registro');
+            end;
+            
+            dados.qryEmpresa.Next;
+          end;
+        finally
+          if LBookmark <> nil then
+            dados.qryEmpresa.GotoBookmark(LBookmark);
+        end;
+        
+        LLog.Add('===== RESUMO FINAL - TESTE DE VERIFICAÇÃO =====');
+        LLog.Add('Total de CNPJs testados: ' + IntToStr(LCNPJsRegistrados + LCNPJsFalhados + LCNPJsJaRegistrados));
+        LLog.Add('CNPJs encontrados na API: ' + IntToStr(LCNPJsJaRegistrados));
+        LLog.Add('CNPJs NÃO encontrados na API: ' + IntToStr(LCNPJsFalhados));
+        
+        LLog.SaveToFile(LLogPath);
+        
+        // Mostrar resultado
+        if LCNPJsFalhados = 0 then
+        begin
+          ShowMessage('✓ SUCESSO: Todos os CNPJs foram encontrados na API!' + sLineBreak +
+                      'Total encontrado: ' + IntToStr(LCNPJsJaRegistrados) + sLineBreak + sLineBreak +
+                      'Log salvo em: ' + LLogPath);
+        end
+        else if LCNPJsJaRegistrados = 0 then
+        begin
+          ShowMessage('✗ NENHUM encontrado: Nenhum CNPJ foi encontrado na API!' + sLineBreak +
+                      'Total NÃO encontrado: ' + IntToStr(LCNPJsFalhados) + sLineBreak + sLineBreak +
+                      'Log salvo em: ' + LLogPath);
+        end
+        else
+        begin
+          ShowMessage('⚠ RESULTADO MISTO: Alguns encontrados, alguns não!' + sLineBreak + sLineBreak +
+                      'Encontrados: ' + IntToStr(LCNPJsJaRegistrados) + sLineBreak +
+                      'NÃO encontrados: ' + IntToStr(LCNPJsFalhados) + sLineBreak + sLineBreak +
+                      'Detalhes: ' + LMsgErros + sLineBreak + sLineBreak +
+                      'Log completo em: ' + LLogPath);
+        end;
+        
+      finally
+        FLicencaManager.Free;
       end;
-    finally
-      FLicencaManager.Free;
+    except
+      on E: Exception do
+      begin
+        LLog.Add('EXCEPTION: ' + E.ClassName);
+        LLog.Add('Mensagem: ' + E.Message);
+        LLog.Add('Chamada de pilha: ' + E.StackTrace);
+        LLog.SaveToFile(LLogPath);
+        ShowMessage('Erro ao registrar empresas: ' + E.Message + sLineBreak + sLineBreak +
+                    'Log salvo em: ' + LLogPath);
+      end;
     end;
-  except
-    on E: Exception do
-      ShowMessage('Erro ao registrar empresa: ' + E.Message);
+  finally
+    LLog.Free;
   end;
 end;
 
