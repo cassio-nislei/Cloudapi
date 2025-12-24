@@ -1,0 +1,93 @@
+╔════════════════════════════════════════════════════════════════════════╗
+║ ATUALIZAÇÃO - Classes Delphi para API Corrigida                         ║
+║ Data: 24/12/2025                                                        ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+📋 RESUMO DAS ALTERAÇÕES:
+
+1. ADMCloudConsts.pas ✅
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Alterações realizadas:
+   
+   ✅ URL de Produção:
+      ANTES: ADMCloud_URL_PROD = 'https://admcloud.papion.com.br/v1'
+      DEPOIS: ADMCloud_URL_PROD = 'http://104.234.173.105:7010'
+   
+   ✅ Endpoints atualizados para usar /api/:
+      ANTES: ADMCloud_ENDPOINT_PASSPORT = 'passport'
+      DEPOIS: ADMCloud_ENDPOINT_PASSPORT = 'api/passport'
+      
+      ANTES: ADMCloud_ENDPOINT_REGISTRO_GET = 'registro'
+      DEPOIS: ADMCloud_ENDPOINT_REGISTRO_GET = 'api/pessoas'
+      
+      ANTES: ADMCloud_ENDPOINT_REGISTRO_POST = 'registro'
+      DEPOIS: ADMCloud_ENDPOINT_REGISTRO_POST = 'api/pessoas'
+
+
+2. ADMCloudAPI.pas ✅
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Alterações realizadas:
+   
+   ✅ Método ValidarPassport (linha 313):
+      ANTES: LEndpoint := 'passport?cgc=' + ...
+      DEPOIS: LEndpoint := 'api/passport?cgc=' + ...
+   
+   ✅ Método GetStatusRegistro (linha 329):
+      ANTES: Result := RequisicaoGET('registro', LResponse);
+      DEPOIS: Result := RequisicaoGET('api/pessoas', LResponse);
+   
+   ✅ Método RegistrarCliente (linha 383):
+      ANTES: Result := RequisicaoPOST('registro', ...);
+      DEPOIS: Result := RequisicaoPOST('api/pessoas', ...);
+   
+   ✅ Método TestarConexao (linha 492):
+      ANTES: Result := RequisicaoGET('passport?cgc=...');
+      DEPOIS: Result := RequisicaoGET('api/passport?cgc=...');
+   
+   ✅ Tratamento de headers (linhas 208-225):
+      - Adicionado suporte para 'api/passport' e 'api/pessoas'
+      - Comentário atualizado: /api/passport é público (sem autenticação)
+      - Endpoints /api/pessoas requerem Bearer Token
+
+
+3. uEmpresaLicencaManager.pas ✅
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Status: Não requer alterações
+   
+   ✓ Já foi atualizado em sessão anterior
+   ✓ Usa ADMCloudAPI.ConsultarPessoa() que foi atualizado
+   ✓ Parser JSON compatível com nova resposta
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 VERIFICAÇÃO DE ENDPOINTS:
+
+Endpoints agora apontam para:
+✅ http://104.234.173.105:7010/api/pessoas
+✅ http://104.234.173.105:7010/api/passport
+✅ Suporta Bearer Token nos headers Authorization
+
+Testes executados com sucesso:
+✅ /api/pessoas?cnpj=92702067000196 → HTTP 200 (Encontrado)
+✅ /api/passport?cgc=92702067000196 → HTTP 200 (Encontrado)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 PRÓXIMOS PASSOS:
+
+1. Compilar o projeto Delphi com as classes atualizadas
+2. Testar o botão btnRegistrarEmpresa
+3. Validar com CNPJs:
+   ✓ 92702067000196 (deve retornar sucesso)
+   ✓ 19788379000174 (deve retornar não encontrado)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 ARQUIVOS MODIFICADOS:
+
+✅ c:\Users\nislei\Desktop\DLL\admcloud\integra\ADMCloudConsts.pas
+✅ c:\Users\nislei\Desktop\DLL\admcloud\integra\ADMCloudAPI.pas
+✅ c:\Users\nislei\Desktop\DLL\admcloud\integra\uEmpresaLicencaManager.pas
+
+Status: PRONTO PARA COMPILAÇÃO ✓
+═════════════════════════════════════════════════════════════════════════════

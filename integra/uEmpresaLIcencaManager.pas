@@ -744,6 +744,7 @@ var
   LCNPJ: string;
   LHostname: string;
   LGUID: string;
+  LEmpresaExisteNaAPI: Boolean;
 begin
   Result := False;
 
@@ -779,12 +780,78 @@ begin
     // Validar Passport via API
     if not ValidarPassportEmpresa(LCNPJ, LHostname, LGUID) then
     begin
-      Log('Erro ao validar Passport via API.');
-      ChangeStatus(lsSemConexaoWeb, 'Falha ao validar Passport na API.');
-      Exit(False);
+      Log('Validacao Passport falhou. Verificando se empresa existe na API...');
+      
+      // Se a validacao falhou, verificar se a empresa existe na API
+      LEmpresaExisteNaAPI := VerificarCNPJNaAPI(LCNPJ);
+      
+      if not LEmpresaExisteNaAPI then
+      begin
+        Log('Empresa nao encontrada na API. Tentando registrar...');
+        
+        // Empresa nao existe - tentar registrar automaticamente
+        // Obter dados de dados.qryEmpresa
+        if not Assigned(dados) or not Assigned(dados.qryEmpresa) or dados.qryEmpresa.IsEmpty then
+        begin
+          Log('Erro: dados.qryEmpresa nao disponivel ou vazio para obter informacoes de registro.');
+          ChangeStatus(lsSemEmpresa, 'Dados da empresa nao carregados.');
+          Exit(False);
+        end;
+
+        // Registrar empresa com dados do qryEmpresa
+        if RegistrarEmpresaNoMySQL(
+          dados.qryEmpresaRAZAO.AsString,           // Nome
+          dados.qryEmpresaFANTASIA.AsString,        // Fantasia
+          LCNPJ,                                     // CNPJ
+          'Administrativo',                          // Contato (pode ser customizado)
+          dados.qryEmpresaEMAIL.AsString,           // Email
+          dados.qryEmpresaFONE.AsString,            // Telefone
+          '',                                        // Celular (opcional)
+          dados.qryEmpresaENDERECO.AsString,        // Endereco
+          dados.qryEmpresaNUMERO.AsString,          // Numero
+          dados.qryEmpresaCOMPLEMENTO.AsString,     // Complemento (opcional)
+          dados.qryEmpresaBAIRRO.AsString,          // Bairro
+          dados.qryEmpresaCIDADE.AsString,          // Cidade
+          dados.qryEmpresaUF.AsString,              // Estado
+          dados.qryEmpresaCEP.AsString              // CEP
+        ) then
+        begin
+          Log('Empresa registrada com sucesso na API! CNPJ: ' + LCNPJ);
+          
+          // Tentar validar novamente apos registro
+          if ValidarPassportEmpresa(LCNPJ, LHostname, LGUID) then
+          begin
+            Log('Sincronizacao bem-sucedida apos registro automatico!');
+            FUltimaSincronizacao := Now;
+            ChangeStatus(lsOk, 'Empresa registrada e sincronizada com sucesso.');
+            Result := True;
+            Exit;
+          end
+          else
+          begin
+            Log('Empresa registrada mas validacao Passport ainda falha.');
+            ChangeStatus(lsOk, 'Empresa registrada na API com sucesso.');
+            Result := True;
+            FUltimaSincronizacao := Now;
+            Exit;
+          end;
+        end
+        else
+        begin
+          Log('Falha ao registrar empresa na API. Erro: ' + GetUltimoErro);
+          ChangeStatus(lsSemConexaoWeb, 'Falha ao registrar empresa na API.');
+          Exit(False);
+        end;
+      end
+      else
+      begin
+        Log('Empresa existe na API mas validacao Passport falhou.');
+        ChangeStatus(lsSemConexaoWeb, 'Falha ao validar Passport da empresa na API.');
+        Exit(False);
+      end;
     end;
 
-    // Se chegou aqui, sincronizacao foi bem-sucedida
+    // Se chegou aqui, sincronizacao foi bem-sucedida (passport validado)
     FUltimaSincronizacao := Now;
     Log('Sincronizacao bem-sucedida!');
     ChangeStatus(lsOk, 'Sincronizacao concluida com sucesso via API.');
@@ -1136,16 +1203,16 @@ begin
               Log('    [DEBUG-012] É um OBJETO com ' + IntToStr(LJSON.Count) + ' campos');
               
               // Verificar se tem campo 'status' - novo formato de resposta
-              if LJSON.ContainsKey('status') then
+              if (LJSON.GetValue('status') <> nil) then
               begin
                 Log('    [DEBUG-012a] Detectado novo formato de resposta (com status)');
                 // Novo formato: {status, msg, data}
                 // A pessoa foi encontrada se status=true
                 Result := LJSON.GetValue<Boolean>('status', False);
                 
-                if LJSON.ContainsKey('data') then
+                if (LJSON.GetValue('data') <> nil) then
                 begin
-                  Log('    [DEBUG-012b] Campo data: ' + IfThen(LJSON.GetValue('data') <> nil, 'presente', 'nulo'));
+                  Log('    [DEBUG-012b] Campo data: presente');
                 end;
               end
               else

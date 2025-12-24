@@ -205,7 +205,7 @@ begin
     FHTTPClient.Request.CustomHeaders.Clear;
     FHTTPClient.Request.CustomHeaders.AddValue('Content-Type', 'application/json');
     
-    // /passport é público (sem autenticação)
+    // /api/passport é público (sem autenticação)
     // /registro, /api/pessoas e /pessoas requerem Bearer Token
     if AnsiStartsText('registro', AEndpoint) or 
        AnsiStartsText('pessoas', AEndpoint) or 
@@ -217,11 +217,11 @@ begin
     AResponse := LResponse;
 
     // Armazenar resposta conforme endpoint
-    if AnsiStartsText('passport', AEndpoint) then
+    if AnsiStartsText('api/passport', AEndpoint) or AnsiStartsText('passport', AEndpoint) then
       FLastPassportResponse := LResponse
     else if AnsiStartsText('registro', AEndpoint) then
       FLastRegistroResponse := LResponse
-    else if AnsiStartsText('pessoas', AEndpoint) then
+    else if AnsiStartsText('pessoas', AEndpoint) or AnsiStartsText('api/pessoas', AEndpoint) then
       FLastRegistroResponse := LResponse;  // Reusar para pessoas também
 
     Result := (FHTTPClient.ResponseCode >= 200) and (FHTTPClient.ResponseCode < 300);
@@ -309,8 +309,8 @@ begin
     Exit;
   end;
   
-  // Endpoint correto conforme Swagger: GET /passport
-  LEndpoint := 'passport?cgc=' + ACGC + '&hostname=' + AHostname + '&guid=' + AGUID;
+  // Endpoint correto conforme Swagger: GET /api/passport
+  LEndpoint := 'api/passport?cgc=' + ACGC + '&hostname=' + AHostname + '&guid=' + AGUID;
 
   if AFBX <> '' then
     LEndpoint := LEndpoint + '&fbx=' + AFBX;
@@ -325,8 +325,8 @@ function TADMCloudAPI.GetStatusRegistro: Boolean;
 var
   LResponse: string;
 begin
-  // Endpoint correto conforme Swagger: GET /registro
-  Result := RequisicaoGET('registro', LResponse);
+  // Endpoint correto conforme Swagger: GET /api/pessoas
+  Result := RequisicaoGET('api/pessoas', LResponse);
 end;
 
 function TADMCloudAPI.RegistrarCliente(const ARegistro: TRegistroData): Boolean;
@@ -377,8 +377,8 @@ begin
 
       LJSON.AddPair('registro', LRegistroJSON);
 
-      // Endpoint correto conforme Swagger: POST /registro
-      Result := RequisicaoPOST('registro', LJSON.ToJSON, LResponse);
+      // Endpoint correto conforme Swagger: POST /api/pessoas
+      Result := RequisicaoPOST('api/pessoas', LJSON.ToJSON, LResponse);
     finally
       // LRegistroJSON será destruído com LJSON
     end;
@@ -487,9 +487,9 @@ function TADMCloudAPI.IsConectado: Boolean;
 var
   LResponse: string;
 begin
-  // Testar conexão fazendo um GET em /passport (endpoint público)
+  // Testar conexão fazendo um GET em /api/passport (endpoint público)
   // Qualquer CGC/hostname/GUID válido serve para teste
-  Result := RequisicaoGET('passport?cgc=00000000000000&hostname=TEST&guid=00000000-0000-0000-0000-000000000000', LResponse);
+  Result := RequisicaoGET('api/passport?cgc=00000000000000&hostname=TEST&guid=00000000-0000-0000-0000-000000000000', LResponse);
 end;
 
 end.
