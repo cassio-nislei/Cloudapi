@@ -60,6 +60,7 @@ $route['translate_uri_dashes'] = TRUE;
 */
 $route['api/pessoas'] = 'Api/pessoas';
 $route['api/pessoas/id/(:num)'] = 'Api/getPessoaById/$1';
+$route['api/passport'] = 'Api/passport';
 
 /*
 | -------------------------------------------------------------------------

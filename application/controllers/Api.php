@@ -166,5 +166,64 @@ class Api extends CI_Controller {
         
         echo json_encode(['status' => $status, 'msg' => $msg, 'data' => $data]);
     }
+    
+    /**
+     * GET /api/passport
+     * Valida passport/autenticação de cliente
+     * Parâmetros: cgc, hostname, guid
+     */
+    function passport() {
+        $status = FALSE;
+        $mensagem = 'Erro ao processar passport';
+        
+        try {
+            // Obter parâmetros
+            $cgc = $this->input->get('cgc');
+            $hostname = $this->input->get('hostname');
+            $guid = $this->input->get('guid');
+            
+            // Validar parâmetros obrigatórios
+            if (empty($cgc)) {
+                $mensagem = 'Parâmetro cgc é obrigatório';
+                echo json_encode(['Status' => $status, 'Mensagem' => $mensagem], JSON_UNESCAPED_UNICODE);
+                return;
+            }
+            
+            // Limpar CGC
+            $cgc_clean = preg_replace('/[^0-9]/', '', $cgc);
+            
+            // Buscar pessoa por CGC
+            if ($this->modelo_pessoas && method_exists($this->modelo_pessoas, 'getByCgc')) {
+                $pessoa = $this->modelo_pessoas->getByCgc($cgc_clean);
+                
+                if ($pessoa) {
+                    $status = TRUE;
+                    $mensagem = 'Registro encontrado';
+                    
+                    // Se foi fornecido hostname e guid, registrar acesso
+                    if (!empty($hostname) && !empty($guid) && $this->licencas && method_exists($this->licencas, 'registrarAcesso')) {
+                        try {
+                            $this->licencas->registrarAcesso($pessoa->ID_PESSOA, $hostname, $guid);
+                        } catch (Exception $e) {
+                            // Ignorar erro no registro de acesso, mas passport ainda é válido
+                        }
+                    }
+                } else {
+                    $status = FALSE;
+                    $mensagem = 'Registro não encontrado';
+                }
+            } else {
+                $status = FALSE;
+                $mensagem = 'Modelo de dados não disponível';
+            }
+            
+        } catch (Exception $ex) {
+            $status = FALSE;
+            $mensagem = $ex->getMessage();
+        }
+        
+        // Retornar no formato esperado (Status/Mensagem em maiúsculas)
+        echo json_encode(['Status' => $status, 'Mensagem' => $mensagem], JSON_UNESCAPED_UNICODE);
+    }
 }
 ?>
