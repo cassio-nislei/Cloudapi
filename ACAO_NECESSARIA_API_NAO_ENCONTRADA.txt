@@ -1,0 +1,122 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║         ⚠️  API.PHP NÃO ENCONTRADO - AÇÃO NECESSÁRIA                      ║
+║                                                                            ║
+║        O servidor retorna HTTP 404 para /api/pessoas                      ║
+║        Isso significa que Api.php não está deployado                      ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─ DIAGNÓSTICO ────────────────────────────────────────────────────────────┐
+│                                                                            │
+│ ✅ /passport        → HTTP 200 OK (Servidor está ONLINE)                 │
+│ ❌ /api/pessoas     → HTTP 404 Not Found (Api.php não encontrado)        │
+│                                                                            │
+│ CONCLUSÃO:                                                                 │
+│ ───────────                                                               │
+│ • Servidor está online e funcionando                                      │
+│ • Arquivo Api.php NÃO foi encontrado em /application/controllers/        │
+│ • Possíveis motivos:                                                      │
+│   1. Arquivo não foi enviado corretamente                                │
+│   2. Arquivo está em pasta errada                                        │
+│   3. Upload foi feito em pasta incorreta                                 │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ CHECKLIST: VERIFICAR LOCAL DO ARQUIVO ──────────────────────────────────┐
+│                                                                            │
+│ ☐ PASSO 1: Conectar ao servidor via SSH ou FTP                          │
+│                                                                            │
+│ ☐ PASSO 2: Verificar se Api.php existe                                   │
+│     Comando SSH:                                                          │
+│     └─ ls -la /application/controllers/Api.php                           │
+│                                                                            │
+│     Se o arquivo EXISTE:                                                 │
+│     └─ Ir para "PASSO 4: Verificar permissões"                          │
+│                                                                            │
+│     Se o arquivo NÃO EXISTE:                                             │
+│     └─ Ir para "PASSO 3: Re-enviar arquivo"                             │
+│                                                                            │
+│ ☐ PASSO 3: Re-enviar Api.php corretamente                                │
+│     Local (seu PC):                                                       │
+│     c:\Users\nislei\Desktop\DLL\admcloud\application\controllers\Api.php  │
+│                                                                            │
+│     Remoto (servidor):                                                    │
+│     /application/controllers/Api.php                                      │
+│                                                                            │
+│     Via FileZilla:                                                        │
+│     1. Conectar ao: admcloud.papion.com.br                              │
+│     2. Navegar até: /application/controllers/                           │
+│     3. Fazer upload: Api.php                                             │
+│     4. Confirmar: Arquivo aparece na lista                              │
+│                                                                            │
+│     Via SCP (SSH):                                                        │
+│     scp Api.php user@admcloud.papion.com.br:/application/controllers/   │
+│                                                                            │
+│ ☐ PASSO 4: Verificar permissões do arquivo                               │
+│     Comando SSH:                                                          │
+│     chmod 644 /application/controllers/Api.php                           │
+│                                                                            │
+│ ☐ PASSO 5: Testar endpoint após re-envio                                 │
+│     Comando local:                                                        │
+│     php diagnostico_avancado.php                                         │
+│                                                                            │
+│     Resultado esperado:                                                   │
+│     ✅ /api/pessoas → HTTP 200 OK                                        │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ ALTERNATIVA: Verificar pasta correta ───────────────────────────────────┐
+│                                                                            │
+│ Se você enviou para a pasta ERRADA, pode ser:                            │
+│                                                                            │
+│ ❌ /application/controllers/v1/Api.php (ERRADO - v1 é subdiretório)     │
+│ ✅ /application/controllers/Api.php (CORRETO)                            │
+│                                                                            │
+│ Via SSH, verificar:                                                        │
+│ └─ find /application -name "Api.php" 2>/dev/null                         │
+│                                                                            │
+│ Se encontrar em /application/controllers/v1/:                             │
+│ 1. Mover arquivo: mv /application/controllers/v1/Api.php \              │
+│                      /application/controllers/Api.php                    │
+│ 2. Testar novamente                                                       │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ PRÓXIMAS AÇÕES ─────────────────────────────────────────────────────────┐
+│                                                                            │
+│ 1️⃣  Verificar se Api.php está em /application/controllers/              │
+│     Via SSH: ls -la /application/controllers/Api.php                     │
+│                                                                            │
+│ 2️⃣  Se não existe, re-enviar arquivo:                                    │
+│     Via FileZilla ou SCP                                                 │
+│                                                                            │
+│ 3️⃣  Verificar permissões:                                                │
+│     Via SSH: chmod 644 /application/controllers/Api.php                  │
+│                                                                            │
+│ 4️⃣  Testar endpoint:                                                      │
+│     php diagnostico_avancado.php                                         │
+│     Esperado: /api/pessoas → HTTP 200 OK                                 │
+│                                                                            │
+│ 5️⃣  Depois que funcionar:                                                │
+│     • Compilar Delphi                                                    │
+│     • Testar aplicação                                                   │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  AÇÃO IMEDIATA NECESSÁRIA:
+
+Verifique via SSH ou FTP se o arquivo Api.php está em:
+/application/controllers/Api.php
+
+Se não estiver, re-envie o arquivo de:
+c:\Users\nislei\Desktop\DLL\admcloud\application\controllers\Api.php
+
+para o servidor em:
+/application/controllers/Api.php
+
+Depois execute diagnostico_avancado.php novamente para confirmar!
+
+═══════════════════════════════════════════════════════════════════════════════

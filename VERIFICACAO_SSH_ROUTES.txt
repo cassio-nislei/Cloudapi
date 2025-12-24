@@ -1,0 +1,88 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║           ⚠️  VERIFICAÇÃO SSH NECESSÁRIA - routes.php                     ║
+║                                                                            ║
+║   A rota ainda não está sendo reconhecida. Precisa verificar se o         ║
+║   arquivo routes.php foi realmente atualizado no servidor.                ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─ PASSO 1: Conectar via SSH ──────────────────────────────────────────────┐
+│                                                                            │
+│ Abra terminal/PowerShell e execute:                                       │
+│                                                                            │
+│ ssh user@admcloud.papion.com.br                                          │
+│ (ou use sua credencial SSH)                                              │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ PASSO 2: Verificar se routes.php foi atualizado ────────────────────────┐
+│                                                                            │
+│ Execute este comando para ver as últimas linhas do arquivo:               │
+│                                                                            │
+│ tail -20 /application/config/routes.php                                  │
+│                                                                            │
+│ Resultado esperado: Deve mostrar as linhas:                              │
+│ ─────────────────────────────────────────                               │
+│ $route['api/pessoas'] = 'Api/pessoas';                                   │
+│ $route['api/pessoas/id/(:num)'] = 'Api/getPessoaById/$1';                │
+│                                                                            │
+│ Se NÃO mostra essas linhas:                                              │
+│ └─ O arquivo NÃO foi atualizado!                                         │
+│ └─ Ir para: PASSO 3 (Re-enviar arquivo)                                  │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ PASSO 3: Se arquivo não foi atualizado ─────────────────────────────────┐
+│                                                                            │
+│ Re-envie o arquivo routes.php:                                           │
+│                                                                            │
+│ Arquivo local:                                                            │
+│ c:\Users\nislei\Desktop\DLL\admcloud\application\config\routes.php       │
+│                                                                            │
+│ Arquivo remoto:                                                           │
+│ /application/config/routes.php                                           │
+│                                                                            │
+│ Via SCP (SSH):                                                            │
+│ scp routes.php user@admcloud.papion.com.br:/application/config/         │
+│                                                                            │
+│ Via FileZilla:                                                            │
+│ 1. Conectar ao servidor                                                  │
+│ 2. Navegar: /application/config/                                         │
+│ 3. Enviar: routes.php (com replace/overwrite)                            │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ PASSO 4: Se arquivo foi atualizado mas não funciona ────────────────────┐
+│                                                                            │
+│ Pode ser problema de cache ou permissões. Execute:                       │
+│                                                                            │
+│ # Verificar permissões do arquivo                                         │
+│ chmod 644 /application/config/routes.php                                 │
+│                                                                            │
+│ # Limpar cache do PHP (se disponível)                                    │
+│ sudo systemctl restart php-fpm                                           │
+│ # ou                                                                      │
+│ sudo /etc/init.d/php-fpm restart                                         │
+│                                                                            │
+│ # Aguardar 2-3 minutos                                                   │
+│ # Testar novamente: php diagnostico_avancado.php                         │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ PASSO 5: Se tudo falhar ────────────────────────────────────────────────┐
+│                                                                            │
+│ Contate o provedor de hosting:                                           │
+│                                                                            │
+│ "Preciso colocar um novo controlador API (Api.php) em                    │
+│ /application/controllers/ e adicionar rotas em routes.php                │
+│ mas o CodeIgniter não está reconhecendo as rotas. Pode                   │
+│ verificar se há cache de aplicação que precisa ser limpo?"                │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⏱️  Tempo estimado: 5-10 minutos
+
+Próxima ação: Conecte via SSH e verifique se routes.php foi atualizado!

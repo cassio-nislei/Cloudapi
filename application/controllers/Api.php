@@ -12,12 +12,22 @@ class Api extends CI_Controller {
     function __construct() {
         parent::__construct();
         
-        $this->load->model('Pessoas_model', 'modelo_pessoas');
-        $this->load->model('PessoaLicencas_model', 'licencas');
-        $this->load->model('AdminUsers_model', 'modelo_users');
-        
         // Configurar headers de resposta
         header('Content-Type: application/json; charset=utf-8');
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+        
+        // Tentar carregar modelos, mas continuar se falhar
+        if (file_exists(APPPATH . 'models/Pessoas_model.php')) {
+            $this->load->model('Pessoas_model', 'modelo_pessoas');
+        }
+        if (file_exists(APPPATH . 'models/PessoaLicencas_model.php')) {
+            $this->load->model('PessoaLicencas_model', 'licencas');
+        }
+        if (file_exists(APPPATH . 'models/AdminUsers_model.php')) {
+            $this->load->model('AdminUsers_model', 'modelo_users');
+        }
     }
     
     /**
@@ -27,61 +37,78 @@ class Api extends CI_Controller {
      */
     function pessoas() {
         $status = FALSE;
-        $msg = NULL;
-        $data = [];
+        $msg = 'Erro: Nenhum parâmetro fornecido';
+        $data = NULL;
         
         try {
             // Buscar por CGC/CNPJ se fornecido como parâmetro GET
             $cgc = $this->input->get('cnpj');
-            $cgc = $this->input->get('cgc') ?: $cgc;  // Aceita ambos os nomes
+            if (empty($cgc)) {
+                $cgc = $this->input->get('cgc');
+            }
             
             if (!empty($cgc)) {
-                // Buscar pessoa por CGC
-                $pessoa = $this->modelo_pessoas->getByCgc($cgc);
+                // Remover formatação do CGC (deixar apenas números)
+                $cgc_clean = preg_replace('/[^0-9]/', '', $cgc);
                 
-                if ($pessoa) {
-                    $status = TRUE;
-                    $msg = 'Pessoa encontrada';
+                // Verificar se modelo foi carregado
+                if ($this->modelo_pessoas && method_exists($this->modelo_pessoas, 'getByCgc')) {
+                    // Buscar pessoa por CGC
+                    $pessoa = $this->modelo_pessoas->getByCgc($cgc_clean);
                     
-                    // Formatar dados da resposta
-                    $pessoa->CGC                = formata_cgc($pessoa->CGC);
-                    $pessoa->CEP                = formata_cep($pessoa->CEP);
-                    $pessoa->CELULAR            = formata_celular($pessoa->CELULAR);
-                    $pessoa->TELEFONE           = formata_celular($pessoa->TELEFONE);
-                    $pessoa->FAX                = formata_celular($pessoa->FAX);
-                    $pessoa->DATA_CADASTRO      = dateToBr($pessoa->DATA_CADASTRO);
-                    $pessoa->ULTIMA_ATUALIZACAO = dateToBr($pessoa->ULTIMA_ATUALIZACAO);
-                    $pessoa->EXPIRA_EM          = dateToBr($pessoa->EXPIRA_EM);
-                    $pessoa->DATA_INSTALL       = dateToBr($pessoa->DATA_INSTALL);
-                    $pessoa->MENSALIDADE        = valorToBr($pessoa->MENSALIDADE);
-                    
-                    // Obter licenças associadas
-                    $pessoa->LISTA_LICENCAS = $this->licencas->getByIdPessoa($pessoa->ID_PESSOA);
-                    if ($pessoa->LISTA_LICENCAS) {
-                        foreach($pessoa->LISTA_LICENCAS as $licenca) {
-                            $licenca->LAST_LOGIN = dateToBr($licenca->LAST_LOGIN);
+                    if ($pessoa) {
+                        $status = TRUE;
+                        $msg = 'Pessoa encontrada';
+                        
+                        // Formatar dados da resposta
+                        if (function_exists('formata_cgc')) $pessoa->CGC = formata_cgc($pessoa->CGC);
+                        if (function_exists('formata_cep')) $pessoa->CEP = formata_cep($pessoa->CEP);
+                        if (function_exists('formata_celular')) $pessoa->CELULAR = formata_celular($pessoa->CELULAR);
+                        if (function_exists('formata_celular')) $pessoa->TELEFONE = formata_celular($pessoa->TELEFONE);
+                        if (function_exists('formata_celular')) $pessoa->FAX = formata_celular($pessoa->FAX);
+                        if (function_exists('dateToBr')) $pessoa->DATA_CADASTRO = dateToBr($pessoa->DATA_CADASTRO);
+                        if (function_exists('dateToBr')) $pessoa->ULTIMA_ATUALIZACAO = dateToBr($pessoa->ULTIMA_ATUALIZACAO);
+                        if (function_exists('dateToBr')) $pessoa->EXPIRA_EM = dateToBr($pessoa->EXPIRA_EM);
+                        if (function_exists('dateToBr')) $pessoa->DATA_INSTALL = dateToBr($pessoa->DATA_INSTALL);
+                        if (function_exists('valorToBr')) $pessoa->MENSALIDADE = valorToBr($pessoa->MENSALIDADE);
+                        
+                        // Obter licenças associadas se modelo foi carregado
+                        if ($this->licencas && method_exists($this->licencas, 'getByIdPessoa')) {
+                            $pessoa->LISTA_LICENCAS = $this->licencas->getByIdPessoa($pessoa->ID_PESSOA);
+                            if ($pessoa->LISTA_LICENCAS) {
+                                foreach($pessoa->LISTA_LICENCAS as $licenca) {
+                                    if (function_exists('dateToBr')) $licenca->LAST_LOGIN = dateToBr($licenca->LAST_LOGIN);
+                                }
+                            }
                         }
+                        
+                        $data = $pessoa;
+                    } else {
+                        // Retorna status false mas indica que a busca foi processada corretamente
+                        $status = FALSE;
+                        $msg = 'Pessoa não encontrada para o CGC informado';
+                        $data = NULL;
                     }
-                    
-                    $data = $pessoa;
                 } else {
-                    // Retorna status false mas indica que a busca foi processada corretamente
+                    // Modelo não carregado, retornar mensagem de erro
                     $status = FALSE;
-                    $msg = 'Pessoa não encontrada para o CGC informado';
+                    $msg = 'Modelo de dados não disponível. Verifique a configuração do servidor.';
                     $data = NULL;
                 }
             } else {
                 // Se não há parâmetro de busca, retorna erro
-                throw new Exception('Parâmetro cnpj ou cgc não fornecido');
+                $status = FALSE;
+                $msg = 'Parâmetro cnpj ou cgc não fornecido';
+                $data = NULL;
             }
             
         } catch (Exception $ex) {
             $status = FALSE;
-            $msg = $ex->getMessage();
+            $msg = 'Erro: ' . $ex->getMessage();
             $data = NULL;
         }
         
-        echo json_encode(['status' => $status, 'msg' => $msg, 'data' => $data]);
+        echo json_encode(['status' => $status, 'msg' => $msg, 'data' => $data], JSON_UNESCAPED_UNICODE);
     }
     
     /**
