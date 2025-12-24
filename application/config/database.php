@@ -75,10 +75,10 @@ $query_builder = TRUE;
 
 $db['local'] = array(
 	'dsn'	=> '',
-	'hostname' => 'mysql:host=104.234.173.105;dbname=adminapi',
+	'hostname' => 'mysql:host=104.234.173.105;dbname=admCloud',
 	'username' => 'root',
 	'password' => 'Ncm@647534',
-	'database' => 'adminapi',
+	'database' => 'admCloud',
 	'dbdriver' => 'pdo',
 	'dbprefix' => '',
 	'pconnect' => FALSE,

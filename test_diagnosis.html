@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Teste de Dados - ADMCloud</title>
+    <style>
+      body {
+        font-family: Arial;
+        margin: 20px;
+      }
+      .result {
+        padding: 15px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background: #f9f9f9;
+      }
+      .success {
+        border-left: 4px solid #28a745;
+        background: #f1f8f4;
+      }
+      .error {
+        border-left: 4px solid #dc3545;
+        background: #f8f1f1;
+      }
+      .warning {
+        border-left: 4px solid #ffc107;
+        background: #f8f7f1;
+      }
+      pre {
+        background: #f4f4f4;
+        padding: 10px;
+        overflow-x: auto;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔍 Teste de Diagnóstico - ADMCloud</h1>
+
+    <div id="results"></div>
+
+    <h2>Testes Disponíveis</h2>
+    <button onclick="testLogon()">1. Testar Login (PHP)</button>
+    <button onclick="testSession()">2. Testar Sessão (PHP)</button>
+    <button onclick="testDatabase()">3. Testar Banco de Dados (PHP)</button>
+    <button onclick="testPessoas()">4. Testar /Pessoas/getAll (AJAX)</button>
+    <button onclick="testOtherEndpoint()">
+      5. Testar Outro Endpoint (AJAX)
+    </button>
+    <button onclick="clearResults()">Limpar Resultados</button>
+
+    <script>
+      const resultsDiv = document.getElementById("results");
+
+      function addResult(title, message, type = "info") {
+        const div = document.createElement("div");
+        div.className = `result ${type}`;
+        div.innerHTML = `<strong>${title}</strong><p>${message}</p>`;
+        resultsDiv.appendChild(div);
+      }
+
+      function testLogon() {
+        addResult("🔄 Testando...", "Aguarde...", "warning");
+
+        fetch("test_login.php")
+          .then((r) => r.text())
+          .then((data) => {
+            resultsDiv.lastChild.innerHTML = `<strong>✓ Teste de Login</strong><pre>${data}</pre>`;
+            resultsDiv.lastChild.className = "result success";
+          })
+          .catch((e) => {
+            resultsDiv.lastChild.innerHTML = `<strong>✗ Erro</strong><p>${e.message}</p>`;
+            resultsDiv.lastChild.className = "result error";
+          });
+      }
+
+      function testSession() {
+        addResult("🔄 Testando...", "Aguarde...", "warning");
+
+        fetch("test_session.php")
+          .then((r) => r.text())
+          .then((data) => {
+            resultsDiv.lastChild.innerHTML = `<strong>✓ Teste de Sessão</strong><pre>${data}</pre>`;
+            resultsDiv.lastChild.className = "result success";
+          })
+          .catch((e) => {
+            resultsDiv.lastChild.innerHTML = `<strong>✗ Erro</strong><p>${e.message}</p>`;
+            resultsDiv.lastChild.className = "result error";
+          });
+      }
+
+      function testDatabase() {
+        addResult("🔄 Testando...", "Aguarde...", "warning");
+
+        fetch("diagnostic.php")
+          .then((r) => r.text())
+          .then((data) => {
+            resultsDiv.lastChild.innerHTML = `<strong>✓ Teste de Banco de Dados</strong><pre>${data}</pre>`;
+            resultsDiv.lastChild.className = "result success";
+          })
+          .catch((e) => {
+            resultsDiv.lastChild.innerHTML = `<strong>✗ Erro</strong><p>${e.message}</p>`;
+            resultsDiv.lastChild.className = "result error";
+          });
+      }
+
+      function testPessoas() {
+        addResult("🔄 Testando /Pessoas/getAll...", "Aguarde...", "warning");
+
+        const baseUrl =
+          window.location.origin +
+          window.location.pathname.replace(/\/[^\/]+$/, "");
+
+        fetch(baseUrl + "/Pessoas/getAll", {
+          method: "GET",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            const html = `<strong>✓ Resposta de /Pessoas/getAll</strong>
+                <p>Status: ${data.status ? "✓ Sucesso" : "✗ Erro"}</p>
+                <p>Mensagem: ${data.msg}</p>
+                <p>Registros: ${data.data ? data.data.length : 0}</p>
+                <pre>${JSON.stringify(data, null, 2)}</pre>`;
+            resultsDiv.lastChild.innerHTML = html;
+            resultsDiv.lastChild.className = data.status
+              ? "result success"
+              : "result error";
+          })
+          .catch((e) => {
+            resultsDiv.lastChild.innerHTML = `<strong>✗ Erro na requisição</strong><p>${e.message}</p>`;
+            resultsDiv.lastChild.className = "result error";
+          });
+      }
+
+      function testOtherEndpoint() {
+        addResult("🔄 Testando status...", "Aguarde...", "warning");
+
+        fetch("ping", {
+          method: "GET",
+        })
+          .then((r) => r.text())
+          .then((data) => {
+            const html = `<strong>✓ Resposta do Servidor</strong><pre>${data}</pre>`;
+            resultsDiv.lastChild.innerHTML = html;
+            resultsDiv.lastChild.className = "result success";
+          })
+          .catch((e) => {
+            resultsDiv.lastChild.innerHTML = `<strong>⚠ Servidor não responde</strong><p>${e.message}</p>`;
+            resultsDiv.lastChild.className = "result warning";
+          });
+      }
+
+      function clearResults() {
+        resultsDiv.innerHTML = "";
+      }
+    </script>
+  </body>
+</html>

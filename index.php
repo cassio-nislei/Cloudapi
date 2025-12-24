@@ -36,6 +36,37 @@
  * @filesource
  */
 
+// ============================================================
+// CORS PREFLIGHT HANDLER - Deve ser executado ANTES de tudo
+// ============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    $allowed_origins = array(
+        'https://admcloud.papion.com.br',
+        'http://104.234.173.105:7010',
+        'http://localhost:8080',
+        'http://127.0.0.1:8080',
+        'http://127.0.0.1:8888',
+    );
+
+    $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+
+    if (in_array($origin, $allowed_origins)) {
+        http_response_code(200);
+        header("Access-Control-Allow-Origin: {$origin}");
+        header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD");
+        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Request-ID, Accept, Origin, Cache-Control, X-CSRF-Token");
+        header("Access-Control-Expose-Headers: Content-Length, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-Request-ID");
+        header("Access-Control-Allow-Credentials: true");
+        header("Access-Control-Max-Age: 3600");
+        header("Content-Length: 0");
+        exit(0);
+    }
+
+    http_response_code(403);
+    exit('CORS Origin not allowed');
+}
+// ============================================================
+
 /*
  *---------------------------------------------------------------
  * APPLICATION ENVIRONMENT

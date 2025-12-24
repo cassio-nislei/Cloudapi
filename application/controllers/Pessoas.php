@@ -80,15 +80,17 @@ class Pessoas extends CI_Controller {
         try {  
             //pode_ler($this->CONTROLE);
             
-            $data = $this->modelo->getAll();
+            $registros = $this->modelo->getAll();
             
-            if ($data) {
+            if ($registros) {
                 $status = TRUE;
-                $msg    = 'Registros encontrados: '. is5_count($data);
+                $msg    = 'Registros encontrados: '. count($registros);
                 
-                foreach($data as $d) {
+                // Converter para array associativo para facilitar adição de campos
+                foreach($registros as $d) {
                     //para poder filtrar
                     $d->status = $d->ATIVO === 'S' ? 'Ativo' : 'Desativado';
+                    $data[] = $d;
                 }
                 
             } else {
@@ -98,7 +100,11 @@ class Pessoas extends CI_Controller {
         } catch (Exception $ex) {
             $status = FALSE;
             $msg = $ex->getMessage();
+            $data = [];
         }
+        
+        // Garantir que o response tenha o header correto
+        header('Content-Type: application/json');
         echo json_encode(['status' => $status, 'msg' => $msg, 'data' => $data]);
     }
     

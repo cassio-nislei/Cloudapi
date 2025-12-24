@@ -11,6 +11,15 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 |	http://codeigniter.com/user_guide/general/hooks.html
 |
 */
+// CORS Hook - Deve ser o PRIMEIRO hook para adicionar headers
+$hook['pre_system'][] = array(
+	'class'    => 'CorsHook',
+	'function' => 'execute',
+	'filename' => 'CorsHook.php',
+	'filepath' => 'hooks',
+	'params'   => array()
+);
+
 // hook for enable/disable profiling
 $hook['post_controller_constructor'][] = array(
 	'class'    => 'ProfilerEnabler',

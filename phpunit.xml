@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         cacheResultFile=".phpunit.cache/test-results"
+         executionOrder="depends,defects"
+         forceCoversAnnotatedCoveredMethods="false"
+         beStrictAboutCoverage="false"
+         beStrictAboutTestsThatDoNotTestAnything="true"
+         beStrictAboutTestSize="true"
+         beStrictAboutTestsWithoutAssertions="true"
+         beStrictAboutOutputDuringTests="true"
+         colors="true"
+         displayDetailsOnIncompleteTests="true"
+         displayDetailsOnSkippedTests="true"
+         displayDetailsOnTestsThatErrored="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         processIsolation="false"
+         stopOnDefect="false"
+         stopOnError="false"
+         stopOnFailure="false"
+         stopOnIncomplete="false"
+         stopOnRisky="false"
+         stopOnSkipped="false"
+         testdox="false"
+         verbosity="2">
+    
+    <testsuites>
+        <testsuite name="API Endpoints">
+            <file>tests/ApiEndpointTest.php</file>
+        </testsuite>
+    </testsuites>
+
+    <coverage processUncoveredFiles="true"
+              pathCoverage="false"
+              ignoreDeprecatedCodeUnitsFromCodeCoverage="false"
+              disableCodeCoverageIgnore="false">
+        <include>
+            <directory suffix=".php">application</directory>
+        </include>
+        <exclude>
+            <directory suffix="Test.php">tests</directory>
+        </exclude>
+    </coverage>
+
+</phpunit>

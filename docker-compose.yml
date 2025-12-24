@@ -10,7 +10,7 @@ services:
       - DB_HOST=104.234.173.105
       - DB_USER=root
       - DB_PASSWORD=Ncm@647534
-      - DB_NAME=adminapi
+      - DB_NAME=admCloud
       - PHP_MEMORY_LIMIT=256M
       - MAX_FILE_UPLOAD=100M
     volumes:
