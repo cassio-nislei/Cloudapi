@@ -1210,7 +1210,7 @@ begin
         // PASSO 2: Empresa não existe na API - tentar registrar
         LNome := qryEmpresaRAZAO.AsString;
         LFantasia := qryEmpresaFANTASIA.AsString;
-        LContato := qryEmpresaRAZAO.AsString;
+        LContato := qryEmpresaRESPONSAVEL_EMPRESA.AsString;
         // IMPORTANTE: Se EMAIL estiver vazio, usar um email padrão
         LEmail := Trim(qryEmpresaEMAIL.AsString);
         if LEmail = '' then
@@ -1971,8 +1971,8 @@ begin
               LLog.Add('    [RESULTADO] VerificarCNPJNaAPI retornou: ' + IfThen(LJaExiste, 'TRUE (EXISTE)', 'FALSE (NÃO EXISTE)'));
               LLog.Add('    [DEBUG-INFO] ' + FLicencaManager.GetDebugInfo);
               
-              // COMENTADO: Teste apenas de VERIFICAÇÃO
-              // -------------------------------------------
+              // PASSO 2: SE NÃO EXISTE, REGISTRAR NA API
+              // ----------------------------------------- 
               if LJaExiste then
               begin
                 Inc(LCNPJsJaRegistrados);
@@ -1981,45 +1981,40 @@ begin
               end
               else
               begin
-                Inc(LCNPJsFalhados); // Conta como falha porque não encontrou
-                LLog.Add('    [NOVO] CNPJ NÃO ENCONTRADO NA API');
-                LMsgErros := LMsgErros + sLineBreak + '- CNPJ ' + LCNPJ + ': NÃO ENCONTRADO NA API';
-              end;
-              
-              // COMENTADO: Registro será testado depois
-              (* 
-              else
-              begin
-                // PASSO 2: SE NÃO EXISTE, TENTAR REGISTRAR
-                LLog.Add('    [NOVO] CNPJ não encontrado na API - Tentando registrar...');
+                // CNPJ NÃO EXISTE - TENTAR REGISTRAR
+                LLog.Add('    [NOVO] CNPJ não encontrado na API - Tentando registrar automaticamente...');
+                LLog.Add('');
                 
                 if FLicencaManager.RegistrarEmpresaNoMySQL(
-                  LNome,
-                  LFantasia,
-                  LCNPJ,
-                  IfThen(LNome <> '', LNome, 'Administrativo'),
-                  LEmail,
-                  LTelefone,
-                  '',
-                  LEndereco,
-                  LNumero,
-                  '',
-                  LBairro,
-                  LCidade,
-                  LEstado,
-                  LCEP) then
+                  LNome,                                          // Nome
+                  LFantasia,                                      // Fantasia
+                  dados.qryEmpresaCNPJ.AsString,                 // CNPJ (de dados.qryEmpresa)
+                  IfThen(LNome <> '', Copy(LNome, 1, 50), 'Administrativo'),  // Contato
+                  LEmail,                                         // Email
+                  LTelefone,                                      // Telefone
+                  dados.qryEmpresaFONE.AsString,                 // Celular (telefone de dados.qryEmpresa)
+                  LEndereco,                                      // Endereco
+                  LNumero,                                        // Numero
+                  '',                                             // Complemento (opcional)
+                  LBairro,                                        // Bairro
+                  LCidade,                                        // Cidade
+                  LEstado,                                        // Estado
+                  LCEP                                            // CEP
+                ) then
                 begin
                   Inc(LCNPJsRegistrados);
-                  LLog.Add('    [SUCESSO] Empresa registrada com sucesso na API');
+                  LLog.Add('    [SUCESSO] CNPJ registrado com sucesso na API!');
+                  LMsgJaRegistrados := LMsgJaRegistrados + sLineBreak + '- CNPJ ' + LCNPJ + ': REGISTRADO COM SUCESSO';
                 end
                 else
                 begin
                   Inc(LCNPJsFalhados);
-                  LLog.Add('    [ERRO] Falha ao registrar na API: ' + FLicencaManager.GetUltimoErro);
-                  LMsgErros := LMsgErros + sLineBreak + '- CNPJ ' + LCNPJ + ': ' + FLicencaManager.GetUltimoErro;
+                  LLog.Add('    [ERRO] Falha ao registrar CNPJ na API');
+                  LLog.Add('    Erro: ' + FLicencaManager.GetUltimoErro);
+                  LMsgErros := LMsgErros + sLineBreak + '- CNPJ ' + LCNPJ + ': ERRO AO REGISTRAR';
                 end;
               end;
-              *)
+              
               LLog.Add('');
             end
             else
@@ -2034,10 +2029,11 @@ begin
             dados.qryEmpresa.GotoBookmark(LBookmark);
         end;
         
-        LLog.Add('===== RESUMO FINAL - TESTE DE VERIFICAÇÃO =====');
-        LLog.Add('Total de CNPJs testados: ' + IntToStr(LCNPJsRegistrados + LCNPJsFalhados + LCNPJsJaRegistrados));
-        LLog.Add('CNPJs encontrados na API: ' + IntToStr(LCNPJsJaRegistrados));
-        LLog.Add('CNPJs NÃO encontrados na API: ' + IntToStr(LCNPJsFalhados));
+        LLog.Add('===== RESUMO FINAL - REGISTRO DE EMPRESAS =====');
+        LLog.Add('Total de CNPJs processados: ' + IntToStr(LCNPJsRegistrados + LCNPJsFalhados + LCNPJsJaRegistrados));
+        LLog.Add('CNPJs já registrados na API: ' + IntToStr(LCNPJsJaRegistrados));
+        LLog.Add('CNPJs registrados nesta execução: ' + IntToStr(LCNPJsRegistrados));
+        LLog.Add('CNPJs com erro: ' + IntToStr(LCNPJsFalhados));
         
         LLog.SaveToFile(LLogPath);
         

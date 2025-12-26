@@ -174,7 +174,11 @@ begin
     LJSON := TJSONObject.ParseJSONValue(FLastPassportResponse) as TJSONObject;
     if Assigned(LJSON) then
     try
-      LPair := LJSON.Get('status');
+      // Procura por 'Status' (maiúsculo) ou 'status' (minúsculo)
+      LPair := LJSON.Get('Status');
+      if not Assigned(LPair) then
+        LPair := LJSON.Get('status');
+        
       if Assigned(LPair) then
       begin
         LValue := LPair.JsonValue;

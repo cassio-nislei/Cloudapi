@@ -1,10 +1,11 @@
-unit ADMCloudAPI;
+﻿unit ADMCloudAPI;
 
 interface
 
 uses
   SysUtils, Classes, JSON, DateUtils, StrUtils, IdHTTP, IdSSLOpenSSL,
-  IdException, IdExceptionCore, Generics.Collections;
+  IdException, IdExceptionCore, Generics.Collections, System.NetEncoding,
+  ADMCloudConsts;
 
 type
   // Tipos de resposta
@@ -47,6 +48,8 @@ type
     FLastStatusCode: Integer;
     FHTTPClient: TIdHTTP;
     FSSL: TIdSSLIOHandlerSocketOpenSSL;
+    FLastPassportResponse: string;
+    FLastRegistroResponse: string;
 
     // Métodos privados
     procedure ConfigurarSSL;
@@ -59,7 +62,7 @@ type
     procedure TratarErro(const AErro: string; const AStatusCode: Integer = 0);
 
   public
-    constructor Create(const AURL: string = 'http://localhost/api/v1');
+    constructor Create(const AURL: string = '');
     destructor Destroy; override;
 
     // Configuração
@@ -71,10 +74,13 @@ type
       const AFBX: string = ''; const APDV: string = ''): Boolean;
     function GetStatusRegistro: Boolean;
     function RegistrarCliente(const ARegistro: TRegistroData): Boolean;
+    function ConsultarPessoa(const ACNPJ: string; out AResponse: string): Boolean;
 
     // Métodos de resposta
     function GetPassportResponse: TPassportResponse;
     function GetRegistroResponse: TRegistroResponse;
+    function GetLastPassportResponseRaw: string;
+    function GetLastRegistroResponseRaw: string;
 
     // Utilitários
     function GetUltimoErro: string;
@@ -92,10 +98,14 @@ implementation
 
 { TADMCloudAPI }
 
-constructor TADMCloudAPI.Create(const AURL: string = 'http://localhost/api/v1');
+constructor TADMCloudAPI.Create(const AURL: string = '');
 begin
   inherited Create;
-  FURL := AURL;
+  // Se AURL vazio, usar URL padrão de produção
+  if AURL = '' then
+    FURL := ADMCloud_URL_PROD
+  else
+    FURL := AURL;
   FUsername := 'api_frontbox';
   FPassword := 'api_FBXzylXI0ZluneF1lt3rwXyZsfayp0cCrKCGX0rg';
   FTimeout := 30000; // 30 segundos padrão
@@ -129,7 +139,7 @@ procedure TADMCloudAPI.ConfigurarSSL;
 begin
   if Assigned(FSSL) then
   begin
-    FSSL.SSLOptions.SSLVersions := [sslvTLSv1_2, sslvTLSv1_3];
+    FSSL.SSLOptions.SSLVersions := [sslvTLSv1_2];
     FSSL.SSLOptions.Mode := sslmClient;
     FSSL.SSLOptions.VerifyMode := [];
   end;
@@ -175,7 +185,7 @@ var
   LCredenciais: string;
 begin
   LCredenciais := FUsername + ':' + FPassword;
-  Result := 'Basic ' + TIdEncoderMIME.EncodeString(LCredenciais);
+  Result := 'Basic ' + TNetEncoding.Base64.Encode(LCredenciais);
 end;
 
 function TADMCloudAPI.RequisicaoGET(const AEndpoint: string; 
@@ -193,12 +203,25 @@ begin
     LURL := MontarURLCompleta(AEndpoint);
     
     FHTTPClient.Request.CustomHeaders.Clear;
-    FHTTPClient.Request.CustomHeaders.AddValue('Authorization', CodificarBasicAuth);
     FHTTPClient.Request.CustomHeaders.AddValue('Content-Type', 'application/json');
+    
+    // /api/passport é público (sem autenticação)
+    // /api/pessoas requer Basic Auth
+    if AnsiStartsText('pessoas', AEndpoint) or 
+       AnsiStartsText('api/pessoas', AEndpoint) then
+      FHTTPClient.Request.CustomHeaders.AddValue('Authorization', CodificarBasicAuth);
 
     LResponse := FHTTPClient.Get(LURL);
     FLastStatusCode := FHTTPClient.ResponseCode;
     AResponse := LResponse;
+
+    // Armazenar resposta conforme endpoint
+    if AnsiStartsText('api/passport', AEndpoint) or AnsiStartsText('passport', AEndpoint) then
+      FLastPassportResponse := LResponse
+    else if AnsiStartsText('registro', AEndpoint) then
+      FLastRegistroResponse := LResponse
+    else if AnsiStartsText('pessoas', AEndpoint) or AnsiStartsText('api/pessoas', AEndpoint) then
+      FLastRegistroResponse := LResponse;  // Reusar para pessoas também
 
     Result := (FHTTPClient.ResponseCode >= 200) and (FHTTPClient.ResponseCode < 300);
 
@@ -232,12 +255,17 @@ begin
       LURL := MontarURLCompleta(AEndpoint);
 
       FHTTPClient.Request.CustomHeaders.Clear;
+      // POST /registro requer Basic Auth
       FHTTPClient.Request.CustomHeaders.AddValue('Authorization', CodificarBasicAuth);
       FHTTPClient.Request.ContentType := 'application/json';
 
       LResponse := FHTTPClient.Post(LURL, LStream);
       FLastStatusCode := FHTTPClient.ResponseCode;
       AResponse := LResponse;
+
+      // Armazenar resposta
+      if AnsiStartsText('registro', AEndpoint) then
+        FLastRegistroResponse := LResponse;
 
       Result := (FHTTPClient.ResponseCode >= 200) and (FHTTPClient.ResponseCode < 300);
 
@@ -262,7 +290,7 @@ begin
   FLastError := AErro;
   FLastStatusCode := AStatusCode;
   // Aqui você pode adicionar logging se necessário
-  OutputDebugString(PChar('ADMCloud API Error: ' + AErro));
+  //OutputDebugString(PChar('ADMCloud API Error: ' + AErro));
 end;
 
 function TADMCloudAPI.ValidarPassport(const ACGC, AHostname, AGUID: string;
@@ -271,6 +299,16 @@ var
   LResponse: string;
   LEndpoint: string;
 begin
+  Result := False;
+  
+  // Validar campos obrigatórios
+  if (ACGC = '') or (AHostname = '') or (AGUID = '') then
+  begin
+    TratarErro('Parâmetros obrigatórios não preenchidos: cgc, hostname, guid');
+    Exit;
+  end;
+  
+  // Endpoint correto conforme Swagger: GET /passport
   LEndpoint := 'passport?cgc=' + ACGC + '&hostname=' + AHostname + '&guid=' + AGUID;
 
   if AFBX <> '' then
@@ -286,7 +324,8 @@ function TADMCloudAPI.GetStatusRegistro: Boolean;
 var
   LResponse: string;
 begin
-  Result := RequisicaoGET('registro', LResponse);
+  // Endpoint correto conforme Swagger: GET /pessoas
+  Result := RequisicaoGET('pessoas', LResponse);
 end;
 
 function TADMCloudAPI.RegistrarCliente(const ARegistro: TRegistroData): Boolean;
@@ -294,46 +333,92 @@ var
   LResponse: string;
   LJSON: TJSONObject;
   LRegistroJSON: TJSONObject;
+  LJsonPayload: string;
 begin
-  // Montar JSON de requisição
-  LJSON := TJSONObject.Create;
+  Result := False;
+  
+  // Validar campos obrigatórios conforme API OpenAPI
+  if (ARegistro.Nome = '') or (ARegistro.Fantasia = '') or
+     (ARegistro.CGC = '') or (ARegistro.Contato = '') or
+     (ARegistro.Email = '') or (ARegistro.Telefone = '') or
+     (ARegistro.Endereco = '') or (ARegistro.Numero = '') or
+     (ARegistro.Bairro = '') or (ARegistro.Cidade = '') or
+     (ARegistro.Estado = '') or (ARegistro.CEP = '') then
+  begin
+    TratarErro('Todos os campos são obrigatórios para registro: ' +
+      'nome, fantasia, cgc, contato, email, telefone, endereco, numero, bairro, cidade, estado, cep');
+    Exit;
+  end;
+  
+  // Montar JSON de requisição COM WRAPPER 'registro' conforme Swagger
+  LRegistroJSON := TJSONObject.Create;
   try
-    LRegistroJSON := TJSONObject.Create;
+    // Preencher dados obrigatórios
+    LRegistroJSON.AddPair('nome', ARegistro.Nome);
+    LRegistroJSON.AddPair('fantasia', ARegistro.Fantasia);
+    LRegistroJSON.AddPair('cgc', ARegistro.CGC);  // Campo 'cgc' (minúsculo) conforme Swagger
+    LRegistroJSON.AddPair('contato', ARegistro.Contato);
+    LRegistroJSON.AddPair('email', ARegistro.Email);
+    LRegistroJSON.AddPair('telefone', ARegistro.Telefone);
+    LRegistroJSON.AddPair('endereco', ARegistro.Endereco);
+    LRegistroJSON.AddPair('numero', ARegistro.Numero);
+    LRegistroJSON.AddPair('bairro', ARegistro.Bairro);
+    LRegistroJSON.AddPair('cidade', ARegistro.Cidade);
+    LRegistroJSON.AddPair('estado', ARegistro.Estado);
+    LRegistroJSON.AddPair('cep', ARegistro.CEP);
+
+    // Preencher dados opcionais
+    if ARegistro.Celular <> '' then
+      LRegistroJSON.AddPair('celular', ARegistro.Celular);
+    if ARegistro.Complemento <> '' then
+      LRegistroJSON.AddPair('complemento', ARegistro.Complemento);
+
+    // Enviar COM wrapper 'registro' conforme especificação Swagger
+    var LWrapperJSON := TJSONObject.Create;
     try
-      // Preencher dados obrigatórios
-      LRegistroJSON.AddPair('nome', ARegistro.Nome);
-      LRegistroJSON.AddPair('fantasia', ARegistro.Fantasia);
-      LRegistroJSON.AddPair('cgc', ARegistro.CGC);
-      LRegistroJSON.AddPair('contato', ARegistro.Contato);
-      LRegistroJSON.AddPair('email', ARegistro.Email);
-      LRegistroJSON.AddPair('telefone', ARegistro.Telefone);
-
-      // Preencher dados opcionais
-      if ARegistro.Celular <> '' then
-        LRegistroJSON.AddPair('celular', ARegistro.Celular);
-      if ARegistro.Endereco <> '' then
-        LRegistroJSON.AddPair('endereco', ARegistro.Endereco);
-      if ARegistro.Numero <> '' then
-        LRegistroJSON.AddPair('numero', ARegistro.Numero);
-      if ARegistro.Complemento <> '' then
-        LRegistroJSON.AddPair('complemento', ARegistro.Complemento);
-      if ARegistro.Bairro <> '' then
-        LRegistroJSON.AddPair('bairro', ARegistro.Bairro);
-      if ARegistro.Cidade <> '' then
-        LRegistroJSON.AddPair('cidade', ARegistro.Cidade);
-      if ARegistro.Estado <> '' then
-        LRegistroJSON.AddPair('estado', ARegistro.Estado);
-      if ARegistro.CEP <> '' then
-        LRegistroJSON.AddPair('cep', ARegistro.CEP);
-
-      LJSON.AddPair('registro', LRegistroJSON);
-
-      Result := RequisicaoPOST('registro', LJSON.ToJSON, LResponse);
+      LWrapperJSON.AddPair('registro', LRegistroJSON);
+      LJsonPayload := LWrapperJSON.ToJSON;
+      
+      // Endpoint correto: POST /api/v1/registro conforme Swagger
+      Result := RequisicaoPOST(ADMCloud_ENDPOINT_REGISTRO_POST, LJsonPayload, LResponse);
+      
+      // Armazenar resposta para debug
+      FLastRegistroResponse := LResponse;
     finally
-      // LRegistroJSON será destruído com LJSON
+      LWrapperJSON.Free;
     end;
   finally
-    LJSON.Free;
+    // LRegistroJSON será libertado quando LWrapperJSON for libertado (ele contém a referência)
+  end;
+end;
+
+function TADMCloudAPI.ConsultarPessoa(const ACNPJ: string; out AResponse: string): Boolean;
+var
+  LCNPJLimpo: string;
+  LResponseLocal: string;
+begin
+  Result := False;
+  AResponse := '';
+  LResponseLocal := '';
+
+  // Limpar CNPJ
+  LCNPJLimpo := StringReplace(StringReplace(ACNPJ, '.', '', [rfReplaceAll]), '/', '', [rfReplaceAll]);
+  LCNPJLimpo := StringReplace(LCNPJLimpo, '-', '', [rfReplaceAll]);
+
+  // Fazer requisição GET /pessoas?cnpj=XXXXX para buscar a pessoa na API
+  // O endpoint /pessoas não requer autenticação de sessão, mas pode usar Bearer Token
+  Result := RequisicaoGET('pessoas?cnpj=' + LCNPJLimpo, LResponseLocal);
+  AResponse := LResponseLocal;
+  
+  // Armazenar resposta
+  if Result then
+    FLastRegistroResponse := AResponse;
+    
+  // DEBUG: Log para entender o que está acontecendo
+  if not Result then
+  begin
+    // Se falhou, armazenar resposta mesmo assim para debug
+    FLastRegistroResponse := AResponse;
   end;
 end;
 
@@ -344,15 +429,53 @@ begin
   Result.Status := False;
   Result.Mensagem := 'Nenhuma resposta recebida';
   
-  // Você precisaria guardar a última resposta para usar aqui
-  // Isso é um exemplo de como você processaria a resposta
+  if FLastPassportResponse = '' then
+    Exit;
+
+  try
+    LJSON := TJSONObject.ParseJSONValue(FLastPassportResponse) as TJSONObject;
+    if Assigned(LJSON) then
+    try
+      if LJSON.TryGetValue<Boolean>('Status', Result.Status) then
+        // Success
+      else
+        Result.Status := False;
+        
+      if LJSON.TryGetValue<string>('Mensagem', Result.Mensagem) then
+        // Success
+      else
+        Result.Mensagem := 'Erro ao parse da mensagem';
+    finally
+      LJSON.Free;
+    end;
+  except
+    on E: Exception do
+    begin
+      Result.Status := False;
+      Result.Mensagem := 'Erro ao processar resposta: ' + E.Message;
+    end;
+  end;
 end;
 
 function TADMCloudAPI.GetRegistroResponse: TRegistroResponse;
 begin
-  Result.Status := 'ERROR';
+  Result.Status := 'ERRO';
   Result.Msg := 'Nenhuma resposta recebida';
   Result.Data := '';
+  
+  // Você pode expandir isso para fazer parse completo do JSON
+  // Por enquanto, retorna a resposta bruta em Data
+  Result.Data := FLastRegistroResponse;
+end;
+
+function TADMCloudAPI.GetLastPassportResponseRaw: string;
+begin
+  Result := FLastPassportResponse;
+end;
+
+function TADMCloudAPI.GetLastRegistroResponseRaw: string;
+begin
+  Result := FLastRegistroResponse;
 end;
 
 function TADMCloudAPI.GetUltimoErro: string;
@@ -369,15 +492,9 @@ function TADMCloudAPI.IsConectado: Boolean;
 var
   LResponse: string;
 begin
-  // Testar conexão fazendo um GET simples em /passport sem parâmetros
-  FHTTPClient.Request.CustomHeaders.Clear;
-  FHTTPClient.Request.CustomHeaders.AddValue('Content-Type', 'application/json');
-  
-  try
-    Result := True; // Se chegou aqui, conectou
-  except
-    Result := False;
-  end;
+  // Testar conexão fazendo um GET em /api/passport (endpoint público)
+  // Qualquer CGC/hostname/GUID válido serve para teste
+  Result := RequisicaoGET('api/passport?cgc=00000000000000&hostname=TEST&guid=00000000-0000-0000-0000-000000000000', LResponse);
 end;
 
 end.

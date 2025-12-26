@@ -206,11 +206,10 @@ begin
     FHTTPClient.Request.CustomHeaders.AddValue('Content-Type', 'application/json');
     
     // /api/passport é público (sem autenticação)
-    // /registro, /api/pessoas e /pessoas requerem Bearer Token
-    if AnsiStartsText('registro', AEndpoint) or 
-       AnsiStartsText('pessoas', AEndpoint) or 
+    // /api/pessoas requer Basic Auth
+    if AnsiStartsText('pessoas', AEndpoint) or 
        AnsiStartsText('api/pessoas', AEndpoint) then
-      FHTTPClient.Request.CustomHeaders.AddValue('Authorization', 'Bearer ' + FPassword);
+      FHTTPClient.Request.CustomHeaders.AddValue('Authorization', CodificarBasicAuth);
 
     LResponse := FHTTPClient.Get(LURL);
     FLastStatusCode := FHTTPClient.ResponseCode;
@@ -256,8 +255,8 @@ begin
       LURL := MontarURLCompleta(AEndpoint);
 
       FHTTPClient.Request.CustomHeaders.Clear;
-      // POST /registro requer Bearer Token
-      FHTTPClient.Request.CustomHeaders.AddValue('Authorization', 'Bearer ' + FPassword);
+      // POST /registro requer Basic Auth
+      FHTTPClient.Request.CustomHeaders.AddValue('Authorization', CodificarBasicAuth);
       FHTTPClient.Request.ContentType := 'application/json';
 
       LResponse := FHTTPClient.Post(LURL, LStream);
@@ -334,6 +333,7 @@ var
   LResponse: string;
   LJSON: TJSONObject;
   LRegistroJSON: TJSONObject;
+  LJsonPayload: string;
 begin
   Result := False;
   
@@ -350,40 +350,45 @@ begin
     Exit;
   end;
   
-  // Montar JSON de requisição
-  LJSON := TJSONObject.Create;
+  // Montar JSON de requisição COM WRAPPER 'registro' conforme Swagger
+  LRegistroJSON := TJSONObject.Create;
   try
-    LRegistroJSON := TJSONObject.Create;
+    // Preencher dados obrigatórios
+    LRegistroJSON.AddPair('razao', ARegistro.Nome);
+    LRegistroJSON.AddPair('fantasia', ARegistro.Fantasia);
+    LRegistroJSON.AddPair('cgc', ARegistro.CGC);  // Campo 'cgc' (minúsculo) conforme Swagger
+    LRegistroJSON.AddPair('contato', ARegistro.Contato);
+    LRegistroJSON.AddPair('email', ARegistro.Email);
+    LRegistroJSON.AddPair('telefone', ARegistro.Telefone);
+    LRegistroJSON.AddPair('logradouro', ARegistro.Endereco);
+    LRegistroJSON.AddPair('numero', ARegistro.Numero);
+    LRegistroJSON.AddPair('bairro', ARegistro.Bairro);
+    LRegistroJSON.AddPair('municipio', ARegistro.Cidade);
+    LRegistroJSON.AddPair('uf', ARegistro.Estado);
+    LRegistroJSON.AddPair('cep', ARegistro.CEP);
+
+    // Preencher dados opcionais
+    if ARegistro.Celular <> '' then
+      LRegistroJSON.AddPair('whatsapp', ARegistro.Celular);
+    if ARegistro.Complemento <> '' then
+      LRegistroJSON.AddPair('complemento', ARegistro.Complemento);
+
+    // Enviar COM wrapper 'registro' conforme especificação Swagger
+    var LWrapperJSON := TJSONObject.Create;
     try
-      // Preencher dados obrigatórios
-      LRegistroJSON.AddPair('nome', ARegistro.Nome);
-      LRegistroJSON.AddPair('fantasia', ARegistro.Fantasia);
-      LRegistroJSON.AddPair('cgc', ARegistro.CGC);
-      LRegistroJSON.AddPair('contato', ARegistro.Contato);
-      LRegistroJSON.AddPair('email', ARegistro.Email);
-      LRegistroJSON.AddPair('telefone', ARegistro.Telefone);
-      LRegistroJSON.AddPair('endereco', ARegistro.Endereco);
-      LRegistroJSON.AddPair('numero', ARegistro.Numero);
-      LRegistroJSON.AddPair('bairro', ARegistro.Bairro);
-      LRegistroJSON.AddPair('cidade', ARegistro.Cidade);
-      LRegistroJSON.AddPair('estado', ARegistro.Estado);
-      LRegistroJSON.AddPair('cep', ARegistro.CEP);
-
-      // Preencher dados opcionais
-      if ARegistro.Celular <> '' then
-        LRegistroJSON.AddPair('celular', ARegistro.Celular);
-      if ARegistro.Complemento <> '' then
-        LRegistroJSON.AddPair('complemento', ARegistro.Complemento);
-
-      LJSON.AddPair('registro', LRegistroJSON);
-
-      // Endpoint correto conforme Swagger: POST /api/pessoas
-      Result := RequisicaoPOST('api/pessoas', LJSON.ToJSON, LResponse);
+      LWrapperJSON.AddPair('registro', LRegistroJSON);
+      LJsonPayload := LWrapperJSON.ToJSON;
+      
+      // Endpoint correto: POST /api/v1/registro conforme Swagger
+      Result := RequisicaoPOST(ADMCloud_ENDPOINT_REGISTRO_POST, LJsonPayload, LResponse);
+      
+      // Armazenar resposta para debug
+      FLastRegistroResponse := LResponse;
     finally
-      // LRegistroJSON será destruído com LJSON
+      LWrapperJSON.Free;
     end;
   finally
-    LJSON.Free;
+    // LRegistroJSON será libertado quando LWrapperJSON for libertado (ele contém a referência)
   end;
 end;
 

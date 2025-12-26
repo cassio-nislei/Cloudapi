@@ -1,9 +1,9 @@
-unit ADMCloudAPIHelper;
+﻿unit ADMCloudAPIHelper;
 
 interface
 
 uses
-  SysUtils, Classes, JSON, ADMCloudAPI;
+  SysUtils, Classes, JSON, ADMCloudAPI, ADMCloudConsts;
 
 type
   // Classe helper com métodos de conveniência
@@ -12,11 +12,12 @@ type
     FAPI: TADMCloudAPI;
     FLastPassportResponse: string;
     FLastRegistroResponse: string;
+    FLastError: string;
 
     function ParseJSONValue(const AJSON: string; const AKey: string): string;
 
   public
-    constructor Create(const AURL: string = 'http://localhost/api/v1');
+    constructor Create(const AURL: string = '');
     destructor Destroy; override;
 
     // Validar Passport (GET /passport)
@@ -42,6 +43,9 @@ type
       const ACidade: string = ''; const AEstado: string = '';
       const ACEP: string = ''): Boolean;
 
+    // Consultar pessoa por CNPJ (GET /pessoas?cnpj=XXX)
+    function ConsultarPessoaPorCNPJ(const ACNPJ: string; out AResponse: string): Boolean;
+
     // Obter dados da resposta Registro
     function GetRegistroStatus: string;
     function GetRegistroMensagem: string;
@@ -65,12 +69,17 @@ implementation
 
 { TADMCloudHelper }
 
-constructor TADMCloudHelper.Create(const AURL: string = 'http://localhost/api/v1');
+constructor TADMCloudHelper.Create(const AURL: string = '');
 begin
   inherited Create;
-  FAPI := TADMCloudAPI.Create(AURL);
+  // Se AURL vazio, usar URL padrão de produção
+  if AURL = '' then
+    FAPI := TADMCloudAPI.Create(ADMCloud_URL_PROD)
+  else
+    FAPI := TADMCloudAPI.Create(AURL);
   FLastPassportResponse := '';
   FLastRegistroResponse := '';
+  FLastError := '';
 end;
 
 destructor TADMCloudHelper.Destroy;
@@ -94,7 +103,7 @@ begin
     try
       if Assigned(LJSON) then
       begin
-        LValue := LJSON.Get(AKey);
+        LValue := LJSON.GetValue(AKey);
         if Assigned(LValue) then
           Result := LValue.Value;
       end;
@@ -123,8 +132,7 @@ end;
 function TADMCloudHelper.ValidarPassport(const ACGC, AHostname, AGUID: string;
   const AFBX: string = ''; const APDV: string = ''): Boolean;
 var
-  LEndpoint: string;
-  LResponse: string;
+  LCGCLimpo: string;
 begin
   Result := False;
   FLastPassportResponse := '';
@@ -132,27 +140,59 @@ begin
   if not Assigned(FAPI) then
     Exit;
 
-  // Montar endpoint com parâmetros
-  LEndpoint := 'passport?cgc=' + AnsiReplaceText(ACGC, '.', '') + 
-    AnsiReplaceText(ACGC, '/', '') + '&hostname=' + AHostname + '&guid=' + AGUID;
-
-  if AFBX <> '' then
-    LEndpoint := LEndpoint + '&fbx=' + AFBX;
-
-  if APDV <> '' then
-    LEndpoint := LEndpoint + '&pdv=' + APDV;
+  // Remover formatação do CNPJ/CPF
+  LCGCLimpo := RemoverFormatacao(ACGC);
+  
+  // Validar parâmetros obrigatórios
+  if (LCGCLimpo = '') or (AHostname = '') or (AGUID = '') then
+  begin
+    FLastPassportResponse := '';
+    Exit;
+  end;
 
   // Fazer requisição
-  if FAPI.ValidarPassport(ACGC, AHostname, AGUID, AFBX, APDV) then
+  if FAPI.ValidarPassport(LCGCLimpo, AHostname, AGUID, AFBX, APDV) then
   begin
     Result := True;
-    // FLastPassportResponse seria preenchido com a resposta real
+    FLastPassportResponse := FAPI.GetLastPassportResponseRaw;
   end;
 end;
 
+
 function TADMCloudHelper.GetPassportStatus: Boolean;
+var
+  LJSON: TJSONObject;
+  LPair: TJSONPair;
+  LValue: TJSONValue;
 begin
-  Result := ParseJSONValue(FLastPassportResponse, 'Status') = 'true';
+  Result := False;
+  
+  if FLastPassportResponse.Trim = '' then
+    Exit;
+
+  try
+    LJSON := TJSONObject.ParseJSONValue(FLastPassportResponse) as TJSONObject;
+    if Assigned(LJSON) then
+    try
+      LPair := LJSON.Get('status');
+      if Assigned(LPair) then
+      begin
+        LValue := LPair.JsonValue;
+        // Parse como boolean (não como string)
+        if LValue is TJSONTrue then
+          Result := True
+        else if LValue is TJSONFalse then
+          Result := False
+        else
+          // Tenta como string em caso de resposta não padrão
+          Result := LowerCase(LValue.Value) = 'true';
+      end;
+    finally
+      LJSON.Free;
+    end;
+  except
+    Result := False;
+  end;
 end;
 
 function TADMCloudHelper.GetPassportMensagem: string;
@@ -183,17 +223,80 @@ function TADMCloudHelper.RegistrarCliente(const ANome, AFantasia, ACGC,
   const ACEP: string = ''): Boolean;
 var
   LRegistro: TRegistroData;
+  LCGCLimpo: string;
 begin
   Result := False;
   FLastRegistroResponse := '';
+  FLastError := '';  // Limpar erro anterior
 
   if not Assigned(FAPI) then
+  begin
+    FLastError := 'FAPI não inicializado';
     Exit;
+  end;
 
+  // Validar campos obrigatórios
+  if (ANome = '') then
+  begin
+    FLastError := 'Campo Nome está vazio';
+    Exit;
+  end;
+  if (AFantasia = '') then
+  begin
+    FLastError := 'Campo Fantasia está vazio';
+    Exit;
+  end;
+  if (AContato = '') then
+  begin
+    FLastError := 'Campo Contato está vazio';
+    Exit;
+  end;
+  if (AEmail = '') then
+  begin
+    FLastError := 'Campo Email está vazio';
+    Exit;
+  end;
+  if (ATelefone = '') then
+  begin
+    FLastError := 'Campo Telefone está vazio';
+    Exit;
+  end;
+  if (AEndereco = '') then
+  begin
+    FLastError := 'Campo Endereco está vazio';
+    Exit;
+  end;
+  if (ANumero = '') then
+  begin
+    FLastError := 'Campo Numero está vazio';
+    Exit;
+  end;
+  if (ABairro = '') then
+  begin
+    FLastError := 'Campo Bairro está vazio';
+    Exit;
+  end;
+  if (ACidade = '') then
+  begin
+    FLastError := 'Campo Cidade está vazio';
+    Exit;
+  end;
+  if (AEstado = '') then
+  begin
+    FLastError := 'Campo Estado está vazio';
+    Exit;
+  end;
+  if (ACEP = '') then
+  begin
+    FLastError := 'Campo CEP está vazio';
+    Exit;
+  end;
   // Preencher registro
+  LCGCLimpo := RemoverFormatacao(ACGC);
+  
   LRegistro.Nome := ANome;
   LRegistro.Fantasia := AFantasia;
-  LRegistro.CGC := ACGC;
+  LRegistro.CGC := LCGCLimpo;
   LRegistro.Contato := AContato;
   LRegistro.Email := AEmail;
   LRegistro.Telefone := ATelefone;
@@ -208,6 +311,37 @@ begin
 
   // Chamar API
   Result := FAPI.RegistrarCliente(LRegistro);
+  
+  // Salvar resposta SEMPRE, independente de sucesso ou falha
+  FLastRegistroResponse := FAPI.GetLastRegistroResponseRaw;
+  
+  // Se falhou, capturar erro da API
+  if not Result then
+  begin
+    FLastError := FAPI.GetUltimoErro;
+    if FLastError = '' then
+      FLastError := 'Erro desconhecido ao registrar cliente';
+  end;
+end;
+
+function TADMCloudHelper.ConsultarPessoaPorCNPJ(const ACNPJ: string; out AResponse: string): Boolean;
+var
+  LCNPJLimpo: string;
+  LResponse: string;
+begin
+  Result := False;
+  AResponse := '';
+
+  if not Assigned(FAPI) then
+    Exit;
+
+  // Limpar CNPJ
+  LCNPJLimpo := RemoverFormatacao(ACNPJ);
+
+  // Fazer requisição GET /pessoas?cnpj=XXXXX para buscar a pessoa na API
+  // Este endpoint busca dados de uma pessoa já registrada
+  Result := FAPI.ConsultarPessoa(LCNPJLimpo, LResponse);
+  AResponse := LResponse;
 end;
 
 function TADMCloudHelper.GetRegistroStatus: string;
@@ -232,9 +366,13 @@ end;
 
 function TADMCloudHelper.GetUltimoErro: string;
 begin
-  Result := '';
-  if Assigned(FAPI) then
-    Result := FAPI.GetUltimoErro;
+  // Retorna FLastError se estiver preenchido, senão retorna erro da API
+  if FLastError <> '' then
+    Result := FLastError
+  else if Assigned(FAPI) then
+    Result := FAPI.GetUltimoErro
+  else
+    Result := '';
 end;
 
 function TADMCloudHelper.GetUltimoStatusCode: Integer;

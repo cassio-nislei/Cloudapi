@@ -14,7 +14,7 @@ const
   // Endpoints
   ADMCloud_ENDPOINT_PASSPORT = 'api/passport';
   ADMCloud_ENDPOINT_REGISTRO_GET = 'api/pessoas';
-  ADMCloud_ENDPOINT_REGISTRO_POST = 'api/pessoas';
+  ADMCloud_ENDPOINT_REGISTRO_POST = 'v1/registro';  // POST /v1/registro
 
   // Timeouts (em millisegundos)
   ADMCloud_TIMEOUT_PADRAO = 30000;

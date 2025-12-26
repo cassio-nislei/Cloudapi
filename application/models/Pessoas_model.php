@@ -156,7 +156,7 @@ class Pessoas_model extends CI_Model {
             $p->nome        = isset($arr['razao']) ? $arr['razao'] : '';
             $p->telefone    = isset($arr['telefone']) ? $arr['telefone'] : '';
             $p->estado      = isset($arr['uf']) ? $arr['uf'] : '';
-            $p->celular     = isset($arr['whatsapp']) ? $arr['whatsapp'] : ''; 
+            $p->celular     = isset($arr['whatsapp']) ? $arr['whatsapp'] : (isset($arr['celular']) ? $arr['celular'] : ''); 
             $p->chave_a     = isset($arr['chave_a']) ? $arr['chave_a'] : ''; 
             $p->chave_b     = isset($arr['chave_b']) ? $arr['chave_b'] : ''; 
             $p->ativo       = isset($arr['ativo']) ? $arr['ativo'] : ''; 

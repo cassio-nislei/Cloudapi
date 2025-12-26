@@ -66,17 +66,28 @@ class Passport extends REST_Controller {
                 }
 
                 //6. ainda tem limite? entao cadastra a nova licenca
-                $resp = $this->licencas->gravar([
+                $dados_licenca = [
                     'ID_PESSOA'  => $pessoa->ID_PESSOA,
                     'HOSTNAME'   => addslashes($hostname),
                     'GUID'       => addslashes($guid),
                     'CREATED_AT' => getDateTimeCurrent(),
                     'LAST_LOGIN' => getDateTimeCurrent()
-                ]);
+                ];
+                
+                // Debug log
+                error_log('DEBUG: Tentando gravar licença com dados: ' . json_encode($dados_licenca));
+                
+                $resp = $this->licencas->gravar($dados_licenca);
+                
+                // Debug log
+                error_log('DEBUG: Resposta do gravar: ' . var_export($resp, true));
                 
                 if (!$resp) {
+                    error_log('DEBUG: ERRO ao gravar licença');
                     throw new Exception('Erro ao registrar licença.');
                 }
+                
+                error_log('DEBUG: Licença gravada com sucesso. ID: ' . $resp);
             } else {
                 //encontrou? 
                 

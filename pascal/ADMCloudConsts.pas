@@ -1,20 +1,20 @@
-unit ADMCloudConsts;
+﻿unit ADMCloudConsts;
 
 interface
 
 const
   // URLs padrão
-  ADMCloud_URL_DEV = 'http://localhost/api/v1';
-  ADMCloud_URL_PROD = 'http://104.234.173.105:7010/api/v1';
+  ADMCloud_URL_DEV = 'http://localhost/v1';
+  ADMCloud_URL_PROD = 'http://104.234.173.105:7010';
 
   // Credenciais padrão
   ADMCloud_USER = 'api_frontbox';
   ADMCloud_PASS = 'api_FBXzylXI0ZluneF1lt3rwXyZsfayp0cCrKCGX0rg';
 
   // Endpoints
-  ADMCloud_ENDPOINT_PASSPORT = 'passport';
-  ADMCloud_ENDPOINT_REGISTRO_GET = 'registro';
-  ADMCloud_ENDPOINT_REGISTRO_POST = 'registro';
+  ADMCloud_ENDPOINT_PASSPORT = 'api/passport';
+  ADMCloud_ENDPOINT_REGISTRO_GET = 'api/pessoas';
+  ADMCloud_ENDPOINT_REGISTRO_POST = 'v1/registro';  // POST /v1/registro
 
   // Timeouts (em millisegundos)
   ADMCloud_TIMEOUT_PADRAO = 30000;

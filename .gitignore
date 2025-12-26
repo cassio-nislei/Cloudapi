@@ -36,6 +36,8 @@ composer.lock
 application/logs/*
 !application/logs/.gitkeep
 *.log
+*.txt
+*.md
 npm-debug.log
 yarn-error.log
 
@@ -51,6 +53,7 @@ node_modules/
 # Uploads
 # =================================
 uploads/*
+pascal/*
 !uploads/.gitkeep
 images/tmp/*
 !images/tmp/.gitkeep

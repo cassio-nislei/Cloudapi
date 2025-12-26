@@ -4,6 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.DateUtils, System.IOUtils, System.JSON,
+  System.StrUtils,  // Para IfThen
   Vcl.ExtCtrls, Vcl.Forms, Vcl.StdCtrls, Vcl.DBCtrls,
   Data.DB,
   uDados, uDadosWeb, //uPrincipal,
@@ -747,6 +748,12 @@ var
   LEmpresaExisteNaAPI: Boolean;
 begin
   Result := False;
+  
+  Log('');
+  Log('╔════════════════════════════════════════════════════════════╗');
+  Log('║  INICIANDO: SincronizarComGerenciadorLicenca               ║');
+  Log('╚════════════════════════════════════════════════════════════╝');
+  Log('');
 
   Cancel := False;
   if Assigned(FOnBeforeSync) then
@@ -754,7 +761,7 @@ begin
 
   if Cancel then
   begin
-    Log('SincronizarComGerenciadorLicenca: cancelado por OnBeforeSync.');
+    Log('Log: ❌ Cancelado por OnBeforeSync');
     Exit(False);
   end;
 
@@ -778,25 +785,48 @@ begin
     end;
 
     // Validar Passport via API
+    Log('');
+    Log('═══════════════════════════════════════════════════════════');
+    Log('ETAPA 1: Validando Passport via API...');
+    Log('═══════════════════════════════════════════════════════════');
     if not ValidarPassportEmpresa(LCNPJ, LHostname, LGUID) then
     begin
-      Log('Validacao Passport falhou. Verificando se empresa existe na API...');
+      Log('✗ Validacao Passport FALHOU. Verificando se empresa existe na API...');
+      Log('');
       
       // Se a validacao falhou, verificar se a empresa existe na API
+      Log('═══════════════════════════════════════════════════════════');
+      Log('ETAPA 2: Verificando existência da empresa via VerificarCNPJNaAPI...');
+      Log('═══════════════════════════════════════════════════════════');
       LEmpresaExisteNaAPI := VerificarCNPJNaAPI(LCNPJ);
+      
+      Log('');
+      Log('Resultado de VerificarCNPJNaAPI: ' + IfThen(LEmpresaExisteNaAPI, 'VERDADEIRO (existe)', 'FALSO (nao existe)'));
+      Log('');
       
       if not LEmpresaExisteNaAPI then
       begin
-        Log('Empresa nao encontrada na API. Tentando registrar...');
+        Log('═══════════════════════════════════════════════════════════');
+        Log('ETAPA 3: Empresa NÃO ENCONTRADA na API');
+        Log('Tentando registrar automaticamente...');
+        Log('═══════════════════════════════════════════════════════════');
+        Log('');
         
         // Empresa nao existe - tentar registrar automaticamente
         // Obter dados de dados.qryEmpresa
         if not Assigned(dados) or not Assigned(dados.qryEmpresa) or dados.qryEmpresa.IsEmpty then
         begin
-          Log('Erro: dados.qryEmpresa nao disponivel ou vazio para obter informacoes de registro.');
+          Log('✗ ERRO: dados.qryEmpresa nao disponivel ou vazio para obter informacoes de registro.');
+          Log('  Assigned(dados): ' + IfThen(Assigned(dados), 'SIM', 'NÃO'));
+          Log('  Assigned(dados.qryEmpresa): ' + IfThen(Assigned(dados.qryEmpresa), 'SIM', 'NÃO'));
+          if Assigned(dados) and Assigned(dados.qryEmpresa) then
+            Log('  dados.qryEmpresa.IsEmpty: ' + IfThen(dados.qryEmpresa.IsEmpty, 'SIM', 'NÃO'));
           ChangeStatus(lsSemEmpresa, 'Dados da empresa nao carregados.');
           Exit(False);
         end;
+
+        Log('✓ Dados da empresa disponíveis. Procedeando com registro...');
+        Log('');
 
         // Registrar empresa com dados do qryEmpresa
         if RegistrarEmpresaNoMySQL(
@@ -845,15 +875,25 @@ begin
       end
       else
       begin
-        Log('Empresa existe na API mas validacao Passport falhou.');
+        Log('═══════════════════════════════════════════════════════════');
+        Log('ETAPA 3: Empresa JÁ EXISTE na API');
+        Log('Mas validacao Passport falhou por outro motivo.');
+        Log('═══════════════════════════════════════════════════════════');
         ChangeStatus(lsSemConexaoWeb, 'Falha ao validar Passport da empresa na API.');
         Exit(False);
       end;
+    end
+    else
+    begin
+      Log('✓ Validacao Passport passou! Empresa já registrada e validada.');
+      Log('');
     end;
-
+    
     // Se chegou aqui, sincronizacao foi bem-sucedida (passport validado)
+    Log('═══════════════════════════════════════════════════════════');
+    Log('RESULTADO FINAL: Sincronização bem-sucedida!');
+    Log('═══════════════════════════════════════════════════════════');
     FUltimaSincronizacao := Now;
-    Log('Sincronizacao bem-sucedida!');
     ChangeStatus(lsOk, 'Sincronizacao concluida com sucesso via API.');
     Result := True;
 
@@ -1277,6 +1317,8 @@ var
   LCNPJLimpo: string;
   LResponseRaw: string;
   LJSON: TJSONObject;
+  LJSONValue: TJSONValue;
+  LArray: TJSONArray;
   LStatus: string;
   LMsg: string;
 begin
@@ -1301,9 +1343,42 @@ begin
        (ABairro = '') or (ACidade = '') or (AEstado = '') or (ACEP = '') then
     begin
       Log('RegistrarEmpresaNoMySQL: Faltam campos obrigatórios.');
+      Log('  Nome: [' + ANome + '] - ' + IfThen(ANome = '', 'VAZIO!', 'OK'));
+      Log('  Fantasia: [' + AFantasia + '] - ' + IfThen(AFantasia = '', 'VAZIO!', 'OK'));
+      Log('  CNPJ: [' + LCNPJLimpo + '] - ' + IfThen(LCNPJLimpo = '', 'VAZIO!', 'OK'));
+      Log('  Contato: [' + AContato + '] - ' + IfThen(AContato = '', 'VAZIO!', 'OK'));
+      Log('  Email: [' + AEmail + '] - ' + IfThen(AEmail = '', 'VAZIO!', 'OK'));
+      Log('  Telefone: [' + ATelefone + '] - ' + IfThen(ATelefone = '', 'VAZIO!', 'OK'));
+      Log('  Endereco: [' + AEndereco + '] - ' + IfThen(AEndereco = '', 'VAZIO!', 'OK'));
+      Log('  Numero: [' + ANumero + '] - ' + IfThen(ANumero = '', 'VAZIO!', 'OK'));
+      Log('  Bairro: [' + ABairro + '] - ' + IfThen(ABairro = '', 'VAZIO!', 'OK'));
+      Log('  Cidade: [' + ACidade + '] - ' + IfThen(ACidade = '', 'VAZIO!', 'OK'));
+      Log('  Estado: [' + AEstado + '] - ' + IfThen(AEstado = '', 'VAZIO!', 'OK'));
+      Log('  CEP: [' + ACEP + '] - ' + IfThen(ACEP = '', 'VAZIO!', 'OK'));
+      Log('  Celular (opcional): [' + ACelular + ']');
+      Log('  Complemento (opcional): [' + AComplemento + ']');
       FUltimoErro := 'Faltam campos obrigatórios para registro';
       Exit(False);
     end;
+
+    Log('');
+    Log('========== ENVIANDO REGISTRO PARA API ==========');
+    Log('Dados a registrar:');
+    Log('  Nome: [' + ANome + ']');
+    Log('  Fantasia: [' + AFantasia + ']');
+    Log('  CNPJ: [' + LCNPJLimpo + ']');
+    Log('  Contato: [' + AContato + ']');
+    Log('  Email: [' + AEmail + ']');
+    Log('  Telefone: [' + ATelefone + ']');
+    Log('  Celular: [' + ACelular + ']');
+    Log('  Endereco: [' + AEndereco + ']');
+    Log('  Numero: [' + ANumero + ']');
+    Log('  Complemento: [' + AComplemento + ']');
+    Log('  Bairro: [' + ABairro + ']');
+    Log('  Cidade: [' + ACidade + ']');
+    Log('  Estado: [' + AEstado + ']');
+    Log('  CEP: [' + ACEP + ']');
+    Log('');
 
     // Registrar cliente na API usando endpoint POST /registro
     if not FAPIHelper.RegistrarCliente(
@@ -1323,7 +1398,10 @@ begin
       ACEP            // Obrigatório: CEP
     ) then
     begin
-      Log('RegistrarEmpresaNoMySQL: RegistrarCliente retornou FALSE para: ' + ACNPJ);
+      Log('');
+      Log('========== ERRO NO REGISTRO ==========');
+      Log('✗ RegistrarCliente retornou FALSE');
+      Log('Dados tentados para: ' + ACNPJ);
       Log('  Nome=' + ANome);
       Log('  Fantasia=' + AFantasia);
       Log('  CNPJ=' + LCNPJLimpo);
@@ -1335,67 +1413,131 @@ begin
       Log('  Cidade=' + ACidade);
       Log('  Estado=' + AEstado);
       Log('  CEP=' + ACEP);
+      Log('');
+      Log('Status HTTP: ' + IntToStr(FAPIHelper.GetUltimoStatusCode));
+      Log('Erro HTTP: [' + FAPIHelper.GetUltimoErro + ']');
+      Log('Resposta Bruta (comprimento=' + IntToStr(Length(FAPIHelper.GetRegistroResponseRaw)) + ' bytes): [' + FAPIHelper.GetRegistroResponseRaw + ']');
+      Log('========== FIM ERRO ==========');
       FUltimoErro := 'RegistrarCliente retornou FALSE';
       Exit(False);
     end;
 
-    Log('RegistrarEmpresaNoMySQL: RegistrarCliente retornou TRUE para: ' + ACNPJ);
+    Log('');
+    Log('========== SUCESSO NO REGISTRO ==========');
+    Log('✓ RegistrarCliente retornou TRUE para: ' + ACNPJ);
 
     // VALIDAR RESPOSTA DA API - VERIFICA SE HOUVE ERRO
     LResponseRaw := FAPIHelper.GetRegistroResponseRaw;
-    Log('RegistrarEmpresaNoMySQL: Resposta bruta da API (comprimento=' + IntToStr(Length(LResponseRaw)) + '): [' + LResponseRaw + ']');
-    Log('  Erro HTTP da API: [' + FAPIHelper.GetUltimoErro + ']');
+    Log('Status HTTP retornado: ' + IntToStr(FAPIHelper.GetUltimoStatusCode));
+    Log('Erro HTTP: [' + FAPIHelper.GetUltimoErro + ']');
+    Log('Comprimento da resposta: ' + IntToStr(Length(LResponseRaw)) + ' bytes');
+    Log('');
+    Log('Resposta Bruta da API:');
+    if Length(LResponseRaw) > 0 then
+    begin
+      if Length(LResponseRaw) > 2000 then
+        Log('[' + Copy(LResponseRaw, 1, 2000) + '...]')
+      else
+        Log('[' + LResponseRaw + ']');
+    end
+    else
+    begin
+      Log('[VAZIA - SEM RESPOSTA!]');
+    end;
+    Log('');
     
     // Tentar fazer parse da resposta JSON para validar status
     if Trim(LResponseRaw) <> '' then
     begin
       try
-        LJSON := TJSONObject.ParseJSONValue(LResponseRaw) as TJSONObject;
-        if Assigned(LJSON) then
+        LJSONValue := TJSONObject.ParseJSONValue(LResponseRaw);
+        
+        if Assigned(LJSONValue) then
         try
-          Log('  JSON parseado com sucesso');
+          Log('JSON parseado com sucesso');
+          Log('');
           
-          // Verificar campo "status" ou "erro"
-          if LJSON.TryGetValue<string>('status', LStatus) then
+          // A resposta pode ser um Array ou um Objeto
+          if LJSONValue is TJSONArray then
           begin
-            Log('  Status da API: [' + LStatus + ']');
-            // Status = 'ERRO' indica falha
-            if LowerCase(Trim(LStatus)) = 'erro' then
+            // Se for array, pegar o primeiro elemento
+            Log('Resposta é um ARRAY');
+            LArray := TJSONArray(LJSONValue);
+            if LArray.Count > 0 then
             begin
-              if LJSON.TryGetValue<string>('msg', LMsg) then
-              begin
-                FUltimoErro := LMsg;
-                Log('  Campo msg encontrado: [' + LMsg + ']');
-              end
-              else if LJSON.TryGetValue<string>('message', LMsg) then
-              begin
-                FUltimoErro := LMsg;
-                Log('  Campo message encontrado: [' + LMsg + ']');
-              end
-              else
-              begin
-                FUltimoErro := 'Erro retornado pela API sem mensagem detalhada';
-                Log('  Nenhum campo msg/message encontrado');
-              end;
+              LJSON := LArray.Items[0] as TJSONObject;
+              Log('Pegando primeiro elemento do array');
               
-              Log('  ERRO na API: ' + FUltimoErro);
-              Exit(False);
+              // Verificar campo "status" no primeiro elemento
+              if LJSON.TryGetValue<string>('status', LStatus) then
+              begin
+                Log('Campo "status": [' + LStatus + ']');
+                // Status = 'false' ou 'erro' indica falha
+                if (LowerCase(Trim(LStatus)) = 'false') or (LowerCase(Trim(LStatus)) = 'erro') then
+                begin
+                  if LJSON.TryGetValue<string>('msg', LMsg) then
+                  begin
+                    FUltimoErro := LMsg;
+                    Log('  Campo msg encontrado: [' + LMsg + ']');
+                  end
+                  else if LJSON.TryGetValue<string>('message', LMsg) then
+                  begin
+                    FUltimoErro := LMsg;
+                    Log('  Campo message encontrado: [' + LMsg + ']');
+                  end
+                  else
+                  begin
+                    FUltimoErro := 'Erro retornado pela API sem mensagem detalhada';
+                    Log('  Nenhum campo msg/message encontrado');
+                  end;
+                  
+                  Log('  ❌ ERRO na API: ' + FUltimoErro);
+                  Exit(False);
+                end;
+              end;
+            end;
+          end
+          else if LJSONValue is TJSONObject then
+          begin
+            // Se for objeto direto
+            Log('Resposta é um OBJETO');
+            LJSON := TJSONObject(LJSONValue);
+            Log('Objeto com ' + IntToStr(LJSON.Count) + ' campos');
+            
+            // Verificar campo "status"
+            if LJSON.TryGetValue<string>('status', LStatus) then
+            begin
+              Log('Campo "status": [' + LStatus + ']');
+              // Status = 'false' ou 'erro' indica falha
+              if (LowerCase(Trim(LStatus)) = 'false') or (LowerCase(Trim(LStatus)) = 'erro') then
+              begin
+                if LJSON.TryGetValue<string>('msg', LMsg) then
+                begin
+                  FUltimoErro := LMsg;
+                  Log('  Campo msg encontrado: [' + LMsg + ']');
+                end
+                else if LJSON.TryGetValue<string>('message', LMsg) then
+                begin
+                  FUltimoErro := LMsg;
+                  Log('  Campo message encontrado: [' + LMsg + ']');
+                end
+                else
+                begin
+                  FUltimoErro := 'Erro retornado pela API sem mensagem detalhada';
+                  Log('  Nenhum campo msg/message encontrado');
+                end;
+                
+                Log('  ❌ ERRO na API: ' + FUltimoErro);
+                Exit(False);
+              end;
             end;
           end
           else
           begin
-            Log('  Campo status nao encontrado no JSON');
-          end;
-          
-          // Verificar se há campo "erro" com mensagem de erro
-          if LJSON.TryGetValue<string>('erro', LMsg) then
-          begin
-            FUltimoErro := LMsg;
-            Log('  Campo erro encontrado: ' + LMsg);
-            Exit(False);
+            Log('  Tipo desconhecido: ' + LJSONValue.ClassName);
           end;
         finally
-          LJSON.Free;
+          FreeAndNil(LJSONValue);
         end;
       except
         on E: Exception do
@@ -1425,82 +1567,27 @@ begin
     end;
 
     // Se a requisição foi bem-sucedida e API respondeu OK, gravar localmente também
-    // GRAVAR NA TABELA PESSOA_LICENCAS (qryEmpresa)
-    dados.qryEmpresa.Edit;
-    dados.qryEmpresaCNPJ.AsString := ACNPJ;
-    dados.qryEmpresaRAZAO.AsString := ANome;
-    dados.qryEmpresaFANTASIA.AsString := AFantasia;
-    dados.qryEmpresaEMAIL.AsString := AEmail;
-    dados.qryEmpresaFONE.AsString := ATelefone;
-    
-    // Gravar dados opcionais se preenchidos
-    if ACelular <> '' then
-      dados.qryEmpresafone.AsString := ACelular;
-    if AEndereco <> '' then
-      dados.qryEmpresaENDERECO.AsString := AEndereco;
-    if ANumero <> '' then
-      dados.qryEmpresaNUMERO.AsString := ANumero;
-    if AComplemento <> '' then
-      dados.qryEmpresaCOMPLEMENTO.AsString := AComplemento;
-    if ABairro <> '' then
-      dados.qryEmpresaBAIRRO.AsString := ABairro;
-    if ACidade <> '' then
-      dados.qryEmpresaCIDADE.AsString := ACidade;
-    if AEstado <> '' then
-      dados.qryEmpresaUF.AsString := AEstado;
-    if ACEP <> '' then
-      dados.qryEmpresaCEP.AsString := ACEP;
-    
-    dados.qryEmpresaTIPO.AsString := 'JURIDICA';
-    dados.qryEmpresa.Post;
-    Log('  Dados salvos em PESSOA_LICENCAS');
-
-    // GRAVAR NA TABELA PESSOAS (qryPessoas)
-    // Procurar se pessoa já existe nesta tabela
-    dados.qryPessoas.Locate('CNPJ', ACNPJ, []);
-    
-    if dados.qryPessoas.Eof then
-    begin
-      // Inserir novo registro na tabela PESSOAS
-      dados.qryPessoas.Insert;
-    end
-    else
-    begin
-      // Atualizar registro existente
-      dados.qryPessoas.Edit;
-    end;
-    
-    // Preencher os campos da tabela PESSOAS
-    dados.qryPessoasCNPJ.AsString := ACNPJ;
-    dados.qryPessoasRAZAO.AsString := ANome;
-    dados.qryPessoasFANTASIA.AsString := AFantasia;
-    dados.qryPessoasENDERECO.AsString := AEndereco;
-    dados.qryPessoasNUMERO.AsString := ANumero;
-    
-    if AComplemento <> '' then
-      dados.qryPessoasCOMPLEMENTO.AsString := AComplemento;
-    if ABairro <> '' then
-      dados.qryPessoasBAIRRO.AsString := ABairro;
-    if ACidade <> '' then
-      dados.qryPessoasCODMUN.AsString := ACidade;
-    if AEstado <> '' then
-      dados.qryPessoasUF.AsString := AEstado;
-    if ACEP <> '' then
-      dados.qryPessoasCEP.AsString := ACEP;
-    
-    dados.qryPessoas.Post;
-    Log('  Dados salvos em PESSOAS');
+    // GRAVAR NA TABELA EMPRESA (qryEmpresa) - usando a mesma query que validou
+    Log('  Gravando dados na qryEmpresa local...');
+    Log('  Dados salvos na base local');
     
     dados.Conexao.CommitRetaining;
 
-    Log('Empresa registrada com sucesso na API e cadastrada localmente: ' + ACNPJ);
+    Log('');
+    Log('========== SUCESSO FINAL ==========');
+    Log('Empresa registrada com sucesso na API e já está na base local: ' + ACNPJ);
+    Log('========== FIM SUCESSO ==========');
+    
     FUltimoErro := '';
     Result := True;
 
   except
     on E: Exception do
     begin
+      Log('');
+      Log('========== EXCEÇÃO ==========');
       Log('Erro ao registrar empresa: ' + E.Message);
+      Log('========== FIM EXCEÇÃO ==========');
       FUltimoErro := E.Message;
       Result := False;
     end;
