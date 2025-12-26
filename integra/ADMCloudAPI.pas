@@ -85,6 +85,7 @@ type
     function GetRegistroResponse: TRegistroResponse;
     function GetLastPassportResponseRaw: string;
     function GetLastRegistroResponseRaw: string;
+    function GetInfoFrontBoxParsed(out AData: TRegistroData): Boolean;
 
     // Utilitários
     function GetUltimoErro: string;
@@ -519,6 +520,58 @@ begin
   end;
   
   Result := RequisicaoGET('api/frontbox/getInfo?q=' + LCGCLimpo, AResponse);
+end;
+
+{ Função auxiliar para extrair valor entre tags }
+function ExtrairValorTag(const ATexto: string; const ACampo: string): string;
+var
+  LInicioTag, LFimTag: Integer;
+begin
+  Result := '';
+  LInicioTag := AnsiPos('{' + ACampo + '}', ATexto);
+  if LInicioTag > 0 then
+  begin
+    LInicioTag := LInicioTag + Length(ACampo) + 2;
+    LFimTag := AnsiPos('{/' + ACampo + '}', ATexto);
+    if LFimTag > LInicioTag then
+      Result := Copy(ATexto, LInicioTag, LFimTag - LInicioTag);
+  end;
+end;
+
+function TADMCloudAPI.GetInfoFrontBoxParsed(out AData: TRegistroData): Boolean;
+var
+  LResposta: string;
+begin
+  Result := False;
+  FillChar(AData, SizeOf(AData), 0);
+  LResposta := FLastRegistroResponse;
+  if LResposta = '' then
+  begin
+    TratarErro('Nenhuma resposta disponível. Execute GetInfoFrontBox primeiro.');
+    Exit;
+  end;
+  if AnsiContainsText(LResposta, '{status}ERRO{/status}') then
+  begin
+    TratarErro('Erro na resposta do FrontBox: ' + ExtrairValorTag(LResposta, 'mensagem'));
+    Exit;
+  end;
+  AData.Nome := ExtrairValorTag(LResposta, 'nome');
+  AData.Fantasia := ExtrairValorTag(LResposta, 'fantasia');
+  AData.CGC := ExtrairValorTag(LResposta, 'cgc');
+  AData.Email := ExtrairValorTag(LResposta, 'email');
+  AData.Contato := ExtrairValorTag(LResposta, 'telefone');
+  AData.Telefone := ExtrairValorTag(LResposta, 'telefone');
+  AData.Endereco := ExtrairValorTag(LResposta, 'endereco');
+  AData.Numero := ExtrairValorTag(LResposta, 'numero');
+  AData.Complemento := ExtrairValorTag(LResposta, 'complemento');
+  AData.Bairro := ExtrairValorTag(LResposta, 'bairro');
+  AData.Cidade := ExtrairValorTag(LResposta, 'cidade');
+  AData.Estado := ExtrairValorTag(LResposta, 'estado');
+  AData.CEP := ExtrairValorTag(LResposta, 'cep');
+  AData.CNAE := ExtrairValorTag(LResposta, 'cnae');
+  AData.IM := ExtrairValorTag(LResposta, 'im');
+  AData.Tipo := ExtrairValorTag(LResposta, 'tipo');
+  Result := AData.Nome <> '';
 end;
 
 end.

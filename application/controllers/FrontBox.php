@@ -50,6 +50,21 @@ class FrontBox extends CI_Controller {
             $pessoa->CGC      = formata_cgc($pessoa->CGC);
             $pessoa->TELEFONE = formata_celular($pessoa->TELEFONE);
             
+            // Garantir que todos os campos existem e têm valores padrão
+            $pessoa->NOME        = isset($pessoa->NOME) && !empty($pessoa->NOME) ? $pessoa->NOME : '';
+            $pessoa->FANTASIA    = isset($pessoa->FANTASIA) && !empty($pessoa->FANTASIA) ? $pessoa->FANTASIA : '';
+            $pessoa->ENDERECO    = isset($pessoa->ENDERECO) && !empty($pessoa->ENDERECO) ? $pessoa->ENDERECO : '';
+            $pessoa->COMPLEMENTO = isset($pessoa->COMPLEMENTO) && !empty($pessoa->COMPLEMENTO) ? $pessoa->COMPLEMENTO : '';
+            $pessoa->IE          = isset($pessoa->IE) && !empty($pessoa->IE) ? $pessoa->IE : '';
+            $pessoa->NUMERO      = isset($pessoa->NUMERO) && !empty($pessoa->NUMERO) ? $pessoa->NUMERO : '';
+            $pessoa->BAIRRO      = isset($pessoa->BAIRRO) && !empty($pessoa->BAIRRO) ? $pessoa->BAIRRO : '';
+            $pessoa->CIDADE      = isset($pessoa->CIDADE) && !empty($pessoa->CIDADE) ? $pessoa->CIDADE : '';
+            $pessoa->ESTADO      = isset($pessoa->ESTADO) && !empty($pessoa->ESTADO) ? $pessoa->ESTADO : '';
+            $pessoa->CNAE        = isset($pessoa->CNAE) && !empty($pessoa->CNAE) ? $pessoa->CNAE : '';
+            $pessoa->IM          = isset($pessoa->IM) && !empty($pessoa->IM) ? $pessoa->IM : '';
+            $pessoa->TIPO        = isset($pessoa->TIPO) && !empty($pessoa->TIPO) ? $pessoa->TIPO : '';
+            $pessoa->EMAIL       = isset($pessoa->EMAIL) && !empty($pessoa->EMAIL) ? $pessoa->EMAIL : '';
+            
             $resp = "{status}OK{/status}" .
                     "{nome}$pessoa->NOME{/nome}" .
                     "{fantasia}$pessoa->FANTASIA{/fantasia}" . 
