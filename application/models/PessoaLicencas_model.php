@@ -49,6 +49,13 @@ class PessoaLicencas_model extends CI_Model {
             error_log('DEBUG PessoaLicencas: Executando UPDATE para ID=' . $id);
             $ret = $this->db->update($this->tabela, $dados, [ 'ID' => $id ]);
             error_log('DEBUG PessoaLicencas: UPDATE resultado: ' . var_export($ret, true) . ' Affected rows: ' . $this->db->affected_rows());
+            
+            // Força commit em PDO
+            if ($ret && $this->db->platform() === 'Mysql') {
+                $this->db->trans_commit();
+                error_log('DEBUG PessoaLicencas: COMMIT executado após UPDATE');
+            }
+            
             if ($ret) {                
                 return $id;                
             }
@@ -60,8 +67,16 @@ class PessoaLicencas_model extends CI_Model {
             error_log('DEBUG PessoaLicencas: Executando INSERT');
             $ret = $this->db->insert($this->tabela, $dados);
             error_log('DEBUG PessoaLicencas: INSERT resultado: ' . var_export($ret, true) . ' Insert ID: ' . $this->db->insert_id());
+            
             if ($ret) {
                 $ret_id = $this->db->insert_id();
+                
+                // Força commit em PDO
+                if ($this->db->platform() === 'Mysql') {
+                    $this->db->trans_commit();
+                    error_log('DEBUG PessoaLicencas: COMMIT executado após INSERT');
+                }
+                
                 // Verificação imediata
                 $check = $this->db->get_where($this->tabela, ['ID' => $ret_id])->result_array();
                 error_log('DEBUG PessoaLicencas: Registro após INSERT: ' . json_encode($check));
