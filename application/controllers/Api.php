@@ -200,12 +200,31 @@ class Api extends CI_Controller {
                     $status = TRUE;
                     $mensagem = 'Registro encontrado';
                     
-                    // Se foi fornecido hostname e guid, registrar acesso
-                    if (!empty($hostname) && !empty($guid) && $this->licencas && method_exists($this->licencas, 'registrarAcesso')) {
+                    // Se foi fornecido hostname e guid, registrar a licença
+                    if (!empty($hostname) && !empty($guid) && $this->licencas && method_exists($this->licencas, 'gravar')) {
                         try {
-                            $this->licencas->registrarAcesso($pessoa->ID_PESSOA, $hostname, $guid);
+                            // Verificar se a licença já existe
+                            $licenca_existente = $this->db->get_where('PESSOA_LICENCAS', [
+                                'ID_PESSOA' => $pessoa->ID_PESSOA,
+                                'GUID' => $guid
+                            ])->result_array();
+                            
+                            if (!empty($licenca_existente)) {
+                                // Atualizar LAST_LOGIN se já existe
+                                $this->licencas->gravar(['LAST_LOGIN' => date('Y-m-d H:i:s')], $licenca_existente[0]['ID']);
+                            } else {
+                                // Inserir nova licença se não existe
+                                $this->licencas->gravar([
+                                    'ID_PESSOA' => $pessoa->ID_PESSOA,
+                                    'HOSTNAME' => addslashes($hostname),
+                                    'GUID' => addslashes($guid),
+                                    'CREATED_AT' => date('Y-m-d H:i:s'),
+                                    'LAST_LOGIN' => date('Y-m-d H:i:s')
+                                ]);
+                            }
                         } catch (Exception $e) {
-                            // Ignorar erro no registro de acesso, mas passport ainda é válido
+                            // Log do erro mas não falha o passport
+                            error_log('Erro ao registrar licença: ' . $e->getMessage());
                         }
                     }
                 } else {
