@@ -159,7 +159,10 @@ class Pessoas_model extends CI_Model {
             $p->celular     = isset($arr['whatsapp']) ? $arr['whatsapp'] : (isset($arr['celular']) ? $arr['celular'] : ''); 
             $p->chave_a     = isset($arr['chave_a']) ? $arr['chave_a'] : ''; 
             $p->chave_b     = isset($arr['chave_b']) ? $arr['chave_b'] : ''; 
-            $p->ativo       = isset($arr['ativo']) ? $arr['ativo'] : ''; 
+            $p->ativo       = isset($arr['ativo']) ? $arr['ativo'] : '';
+            $p->tipo        = isset($arr['tipo']) ? $arr['tipo'] : '';
+            $p->cnae        = isset($arr['cnae']) ? $arr['cnae'] : '';
+            $p->im          = isset($arr['im']) ? $arr['im'] : ''; 
                     
         } catch (Exception $ex) {
             //
@@ -188,6 +191,9 @@ class Pessoas_model extends CI_Model {
             $a['celular']      = substr(somenteNumeros($p->celular), 0, 15); 
             $a['contato_cel']  = substr(somenteNumeros($p->celular), 0, 15);
             $a['ativo']        = substr($p->ativo, 0, 1);
+            $a['tipo']         = substr($p->tipo, 0, 50);
+            $a['cnae']         = substr($p->cnae, 0, 50);
+            $a['im']           = substr($p->im, 0, 50);
             
             $a['data_cadastro'] = $p->data_cadastro;
             $a['licencas']      = $p->licencas;

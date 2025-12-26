@@ -41,7 +41,8 @@ type
       const AEndereco: string = ''; const ANumero: string = '';
       const AComplemento: string = ''; const ABairro: string = '';
       const ACidade: string = ''; const AEstado: string = '';
-      const ACEP: string = ''): Boolean;
+      const ACEP: string = ''; const ATipo: string = '';
+      const ACNAE: string = ''; const AIM: string = ''): Boolean;
 
     // Consultar pessoa por CNPJ (GET /pessoas?cnpj=XXX)
     function ConsultarPessoaPorCNPJ(const ACNPJ: string; out AResponse: string): Boolean;
@@ -271,7 +272,8 @@ function TADMCloudHelper.RegistrarCliente(const ANome, AFantasia, ACGC,
   const AEndereco: string = ''; const ANumero: string = '';
   const AComplemento: string = ''; const ABairro: string = '';
   const ACidade: string = ''; const AEstado: string = '';
-  const ACEP: string = ''): Boolean;
+  const ACEP: string = ''; const ATipo: string = '';
+  const ACNAE: string = ''; const AIM: string = ''): Boolean;
 var
   LRegistro: TRegistroData;
   LCGCLimpo: string;
@@ -359,6 +361,9 @@ begin
   LRegistro.Cidade := ACidade;
   LRegistro.Estado := AEstado;
   LRegistro.CEP := ACEP;
+  LRegistro.Tipo := ATipo;
+  LRegistro.CNAE := ACNAE;
+  LRegistro.IM := AIM;
 
   // Chamar API
   Result := FAPI.RegistrarCliente(LRegistro);

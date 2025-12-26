@@ -404,6 +404,12 @@ begin
       LRegistroJSON.AddPair('whatsapp', ARegistro.Celular);
     if ARegistro.Complemento <> '' then
       LRegistroJSON.AddPair('complemento', ARegistro.Complemento);
+    if ARegistro.Tipo <> '' then
+      LRegistroJSON.AddPair('tipo', ARegistro.Tipo);
+    if ARegistro.CNAE <> '' then
+      LRegistroJSON.AddPair('cnae', ARegistro.CNAE);
+    if ARegistro.IM <> '' then
+      LRegistroJSON.AddPair('im', ARegistro.IM);
 
     // Enviar COM wrapper 'registro' conforme especificação Swagger
     var LWrapperJSON := TJSONObject.Create;
