@@ -55,6 +55,7 @@ class FrontBox extends CI_Controller {
             $pessoa->FANTASIA    = isset($pessoa->FANTASIA) && !empty($pessoa->FANTASIA) ? $pessoa->FANTASIA : '';
             $pessoa->ENDERECO    = isset($pessoa->ENDERECO) && !empty($pessoa->ENDERECO) ? $pessoa->ENDERECO : '';
             $pessoa->COMPLEMENTO = isset($pessoa->COMPLEMENTO) && !empty($pessoa->COMPLEMENTO) ? $pessoa->COMPLEMENTO : '';
+            $pessoa->CEP         = isset($pessoa->CEP) && !empty($pessoa->CEP) ? $pessoa->CEP : '';
             $pessoa->IE          = isset($pessoa->IE) && !empty($pessoa->IE) ? $pessoa->IE : '';
             $pessoa->NUMERO      = isset($pessoa->NUMERO) && !empty($pessoa->NUMERO) ? $pessoa->NUMERO : '';
             $pessoa->BAIRRO      = isset($pessoa->BAIRRO) && !empty($pessoa->BAIRRO) ? $pessoa->BAIRRO : '';
@@ -70,6 +71,7 @@ class FrontBox extends CI_Controller {
                     "{fantasia}$pessoa->FANTASIA{/fantasia}" . 
                     "{endereco}$pessoa->ENDERECO{/endereco}" .
                     "{complemento}$pessoa->COMPLEMENTO{/complemento}" .
+                    "{cep}$pessoa->CEP{/cep}" .
                     "{cgc}$pessoa->CGC{/cgc}" .
                     "{ie}$pessoa->IE{/ie}" .
                     "{telefone}$pessoa->TELEFONE{/telefone}" .

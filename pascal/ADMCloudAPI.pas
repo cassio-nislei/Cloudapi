@@ -5,7 +5,7 @@ interface
 uses
   SysUtils, Classes, JSON, DateUtils, StrUtils, IdHTTP, IdSSLOpenSSL,
   IdException, IdExceptionCore, Generics.Collections, System.NetEncoding,
-  ADMCloudConsts;
+  Data.DB, ADMCloudConsts;
 
 type
   // Tipos de resposta
@@ -79,6 +79,33 @@ type
     function RegistrarCliente(const ARegistro: TRegistroData): Boolean;
     function ConsultarPessoa(const ACNPJ: string; out AResponse: string): Boolean;
     function GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+    function VerificaAcessoImpostos(const ACGC: string; out AResponse: string): Boolean;
+    
+    // Métodos adicionais para compatibilidade com TADMCloudHelper
+    function ConsultarPessoaById(const AId: string; out AResponse: string): Boolean;
+    function GetEmpresas(out AResponse: string): Boolean;
+    function GetEmpresaById(const AId: string; out AResponse: string): Boolean;
+    function CriarEmpresa(const ADados: string): Boolean;
+    function GetUsuarios(out AResponse: string): Boolean;
+    function GetUsuarioById(const AId: string; out AResponse: string): Boolean;
+    function GetPermissoes(out AResponse: string): Boolean;
+    function SolicitarResetSenha(const AEmail: string; out AResponse: string): Boolean;
+    function GetGrupos(out AResponse: string): Boolean;
+    function GetGrupoById(const AId: string; out AResponse: string): Boolean;
+    function GetPermissoesGrupo(const AIdGrupo: string; out AResponse: string): Boolean;
+    function GetPerfil(out AResponse: string): Boolean;
+    function AtualizarPerfil(const ADados: string): Boolean;
+    function GetFiliais(out AResponse: string): Boolean;
+    function GetFilialById(const AId: string; out AResponse: string): Boolean;
+    function GetProdutos(out AResponse: string): Boolean;
+    function GetProdutoById(const AId: string; out AResponse: string): Boolean;
+    function GetDiarios(out AResponse: string): Boolean;
+    function GetDiarioById(const AId: string; out AResponse: string): Boolean;
+    function GetModulos(out AResponse: string): Boolean;
+    function GetModuloById(const AId: string; out AResponse: string): Boolean;
+    function GetVisitantes(out AResponse: string): Boolean;
+    function GetVisitanteById(const AId: string; out AResponse: string): Boolean;
+    function AtualizarPessoa(const ACNPJ, ADados: string): Boolean;
 
     // Métodos de resposta
     function GetPassportResponse: TPassportResponse;
@@ -520,6 +547,30 @@ begin
   end;
   
   Result := RequisicaoGET('api/frontbox/getInfo?q=' + LCGCLimpo, AResponse);
+  
+  // Armazenar resposta também em FLastRegistroResponse para compatibilidade
+  if Result then
+    FLastRegistroResponse := AResponse;
+end;
+
+function TADMCloudAPI.VerificaAcessoImpostos(const ACGC: string; out AResponse: string): Boolean;
+var
+  LCGCLimpo: string;
+begin
+  Result := False;
+  AResponse := '';
+  
+  // Remover formatação do CNPJ/CGC
+  LCGCLimpo := StringReplace(StringReplace(ACGC, '.', '', [rfReplaceAll]), '/', '', [rfReplaceAll]);
+  LCGCLimpo := StringReplace(LCGCLimpo, '-', '', [rfReplaceAll]);
+  
+  if LCGCLimpo = '' then
+  begin
+    TratarErro('CGC/CNPJ é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/frontbox/acessaImpostos?cgc=' + LCGCLimpo, AResponse);
 end;
 
 { Função auxiliar para extrair valor entre tags }
@@ -572,6 +623,172 @@ begin
   AData.IM := ExtrairValorTag(LResposta, 'im');
   AData.Tipo := ExtrairValorTag(LResposta, 'tipo');
   Result := AData.Nome <> '';
+end;
+
+// Stub implementations for required API methods
+function TADMCloudAPI.ConsultarPessoaById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('ConsultarPessoaById not yet implemented');
+end;
+
+function TADMCloudAPI.GetEmpresas(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetEmpresas not yet implemented');
+end;
+
+function TADMCloudAPI.GetEmpresaById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetEmpresaById not yet implemented');
+end;
+
+function TADMCloudAPI.CriarEmpresa(const ADados: string): Boolean;
+begin
+  Result := False;
+  TratarErro('CriarEmpresa not yet implemented');
+end;
+
+function TADMCloudAPI.GetUsuarios(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetUsuarios not yet implemented');
+end;
+
+function TADMCloudAPI.GetUsuarioById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetUsuarioById not yet implemented');
+end;
+
+function TADMCloudAPI.GetPermissoes(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetPermissoes not yet implemented');
+end;
+
+function TADMCloudAPI.SolicitarResetSenha(const AEmail: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('SolicitarResetSenha not yet implemented');
+end;
+
+function TADMCloudAPI.GetGrupos(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetGrupos not yet implemented');
+end;
+
+function TADMCloudAPI.GetGrupoById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetGrupoById not yet implemented');
+end;
+
+function TADMCloudAPI.GetPermissoesGrupo(const AIdGrupo: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetPermissoesGrupo not yet implemented');
+end;
+
+function TADMCloudAPI.GetPerfil(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetPerfil not yet implemented');
+end;
+
+function TADMCloudAPI.AtualizarPerfil(const ADados: string): Boolean;
+begin
+  Result := False;
+  TratarErro('AtualizarPerfil not yet implemented');
+end;
+
+function TADMCloudAPI.GetFiliais(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetFiliais not yet implemented');
+end;
+
+function TADMCloudAPI.GetFilialById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetFilialById not yet implemented');
+end;
+
+function TADMCloudAPI.GetProdutos(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetProdutos not yet implemented');
+end;
+
+function TADMCloudAPI.GetProdutoById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetProdutoById not yet implemented');
+end;
+
+function TADMCloudAPI.GetDiarios(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetDiarios not yet implemented');
+end;
+
+function TADMCloudAPI.GetDiarioById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetDiarioById not yet implemented');
+end;
+
+function TADMCloudAPI.GetModulos(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetModulos not yet implemented');
+end;
+
+function TADMCloudAPI.GetModuloById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetModuloById not yet implemented');
+end;
+
+function TADMCloudAPI.GetVisitantes(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetVisitantes not yet implemented');
+end;
+
+function TADMCloudAPI.GetVisitanteById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  TratarErro('GetVisitanteById not yet implemented');
+end;
+
+function TADMCloudAPI.AtualizarPessoa(const ACNPJ, ADados: string): Boolean;
+begin
+  Result := False;
+  TratarErro('AtualizarPessoa not yet implemented');
 end;
 
 end.

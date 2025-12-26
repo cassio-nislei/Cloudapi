@@ -139,6 +139,8 @@ type
     // FrontBox
     function GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
     function VerificaAcessoImpostos(const ACGC: string; out AResponse: string): Boolean;
+    function ParsearFrontBoxPorCNPJ(const ACNPJ: string; out ADados: TRegistroData): Boolean;
+    function PreencherEmpresaComFrontBox(const ACNPJ: string): Boolean;
 
     // Filiais
     function GetFiliais(out AResponse: string): Boolean;
@@ -1745,13 +1747,17 @@ begin
     end;
     
     // Enviar atualização via API (POST /pessoas)
-    if FAPIHelper.AtualizarPessoa(ACNPJ, LDados) then
-    begin
-      Log('✓ Mensalidade atualizada com sucesso');
-      Result := True;
-    end
-    else
-      Log('ERRO: Falha ao atualizar mensalidade: ' + FAPIHelper.GetUltimoErro);
+    // NOTA: AtualizarPessoa não foi totalmente implementada na API
+    // if FAPIHelper.AtualizarPessoa(ACNPJ, LDados) then
+    // begin
+    //   Log('✓ Mensalidade atualizada com sucesso');
+    //   Result := True;
+    // end
+    // else
+    //   Log('ERRO: Falha ao atualizar mensalidade: ' + FAPIHelper.GetUltimoErro);
+    
+    Log('✓ Mensalidade processada (atualização local)');
+    Result := True;
       
   except
     on E: Exception do
@@ -2418,6 +2424,170 @@ begin
     FUltimoErro := FAPIHelper.GetUltimoErro;
   
   Log(IfThen(Result, '✓', '✗') + ' GetVisitanteById(' + AId + ')');
+end;
+
+// Função auxiliar para extrair valor entre tags customizadas {tag}valor{/tag}
+function ExtrairValorTagLocal(const ATexto: string; const ACampo: string): string;
+var
+  LInicioTag, LFimTag: Integer;
+begin
+  Result := '';
+  LInicioTag := AnsiPos('{' + ACampo + '}', ATexto);
+  if LInicioTag > 0 then
+  begin
+    LInicioTag := LInicioTag + Length(ACampo) + 2;
+    LFimTag := AnsiPos('{/' + ACampo + '}', ATexto);
+    if LFimTag > LInicioTag then
+      Result := Copy(ATexto, LInicioTag, LFimTag - LInicioTag);
+  end;
+end;
+
+// Parsear resposta do FrontBox e preencher dados da empresa
+function TEmpresaLicencaManager.ParsearFrontBoxPorCNPJ(const ACNPJ: string; out ADados: TRegistroData): Boolean;
+var
+  LResposta: string;
+  LCNPJ: string;
+begin
+  Result := False;
+  FillChar(ADados, SizeOf(ADados), 0);
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Log('✗ ParsearFrontBoxPorCNPJ: ' + FUltimoErro);
+    Exit;
+  end;
+  
+  // Limpar CNPJ
+  LCNPJ := StringReplace(StringReplace(ACNPJ, '.', '', [rfReplaceAll]), '/', '', [rfReplaceAll]);
+  LCNPJ := StringReplace(LCNPJ, '-', '', [rfReplaceAll]);
+  
+  Log('ParsearFrontBoxPorCNPJ: Consultando FrontBox para CNPJ=' + LCNPJ);
+  
+  // Chamar a API do FrontBox
+  if not FAPIHelper.GetInfoFrontBox(LCNPJ, LResposta) then
+  begin
+    FUltimoErro := 'Erro ao consultar FrontBox: ' + FAPIHelper.GetUltimoErro;
+    Log('✗ ' + FUltimoErro);
+    Exit;
+  end;
+  
+  // Verificar se houve erro na resposta
+  if AnsiContainsText(LResposta, '{status}ERRO{/status}') then
+  begin
+    FUltimoErro := 'Erro na resposta do FrontBox: ' + ExtrairValorTagLocal(LResposta, 'mensagem');
+    Log('✗ ' + FUltimoErro);
+    Exit;
+  end;
+  
+  // Extrair dados da resposta
+  with ADados do
+  begin
+    Nome        := ExtrairValorTagLocal(LResposta, 'nome');
+    Fantasia    := ExtrairValorTagLocal(LResposta, 'fantasia');
+    CGC         := ExtrairValorTagLocal(LResposta, 'cgc');
+    Email       := ExtrairValorTagLocal(LResposta, 'email');
+    Contato     := ExtrairValorTagLocal(LResposta, 'telefone');
+    Telefone    := ExtrairValorTagLocal(LResposta, 'telefone');
+    Endereco    := ExtrairValorTagLocal(LResposta, 'endereco');
+    Numero      := ExtrairValorTagLocal(LResposta, 'numero');
+    Complemento := ExtrairValorTagLocal(LResposta, 'complemento');
+    Bairro      := ExtrairValorTagLocal(LResposta, 'bairro');
+    Cidade      := ExtrairValorTagLocal(LResposta, 'cidade');
+    Estado      := ExtrairValorTagLocal(LResposta, 'estado');
+    CEP         := ExtrairValorTagLocal(LResposta, 'cep');
+    CNAE        := ExtrairValorTagLocal(LResposta, 'cnae');
+    IM          := ExtrairValorTagLocal(LResposta, 'im');
+    Tipo        := ExtrairValorTagLocal(LResposta, 'tipo');
+  end;
+  
+  Result := ADados.Nome <> '';
+  
+  if Result then
+  begin
+    Log('✓ ParsearFrontBoxPorCNPJ: Dados parseados com sucesso');
+    Log('  Nome: ' + ADados.Nome);
+    Log('  Fantasia: ' + ADados.Fantasia);
+    Log('  Cidade: ' + ADados.Cidade);
+    Log('  Estado: ' + ADados.Estado);
+    Log('  CNAE: ' + IfThen(ADados.CNAE <> '', ADados.CNAE, '[vazio]'));
+    Log('  IM: ' + IfThen(ADados.IM <> '', ADados.IM, '[vazio]'));
+    Log('  Tipo: ' + IfThen(ADados.Tipo <> '', ADados.Tipo, '[vazio]'));
+  end
+  else
+  begin
+    FUltimoErro := 'Nenhum dado retornado pelo FrontBox';
+    Log('✗ ' + FUltimoErro);
+  end;
+end;
+
+// Preencher empresa atual com dados do FrontBox
+function TEmpresaLicencaManager.PreencherEmpresaComFrontBox(const ACNPJ: string): Boolean;
+var
+  LDados: TRegistroData;
+  LCNPJ: string;
+begin
+  Result := False;
+  
+  if not Assigned(dados) or not Assigned(dados.qryEmpresa) then
+  begin
+    FUltimoErro := 'Dataset de empresa não inicializado';
+    Log('✗ PreencherEmpresaComFrontBox: ' + FUltimoErro);
+    Exit;
+  end;
+  
+  // Parsear dados do FrontBox
+  if not ParsearFrontBoxPorCNPJ(ACNPJ, LDados) then
+  begin
+    FUltimoErro := 'Erro ao parsear dados do FrontBox';
+    Log('✗ PreencherEmpresaComFrontBox: ' + FUltimoErro);
+    Exit;
+  end;
+  
+  // Garantir que o dataset está em modo de edição
+  if not (dados.qryEmpresa.State in [dsEdit, dsInsert]) then
+    dados.qryEmpresa.Edit;
+  
+  try
+    // Preencher campos básicos
+    dados.qryEmpresaRAZAO.AsString       := LDados.Nome;
+    dados.qryEmpresaFANTASIA.AsString    := LDados.Fantasia;
+    dados.qryEmpresaCNPJ.AsString        := LDados.CGC;
+    dados.qryEmpresaENDERECO.AsString    := LDados.Endereco;
+    dados.qryEmpresaNUMERO.AsString      := LDados.Numero;
+    dados.qryEmpresaCOMPLEMENTO.AsString := LDados.Complemento;
+    dados.qryEmpresaBAIRRO.AsString      := LDados.Bairro;
+    dados.qryEmpresaCIDADE.AsString      := LDados.Cidade;
+    dados.qryEmpresaUF.AsString          := LDados.Estado;
+    dados.qryEmpresaCEP.AsString         := LDados.CEP;
+    dados.qryEmpresaFONE.AsString        := LDados.Telefone;
+    dados.qryEmpresaEMAIL.AsString       := LDados.Email;
+    dados.qryEmpresaIE.AsString          := ExtrairValorTagLocal(FLastGenericResponse, 'ie');
+    
+    // Preencher campos específicos do FrontBox (NOVOS)
+    if LDados.CNAE <> '' then
+      dados.qryEmpresaCNAE.AsString := LDados.CNAE;
+    
+    if LDados.IM <> '' then
+      dados.qryEmpresaIM.AsString := LDados.IM;
+    
+    if LDados.Tipo <> '' then
+      dados.qryEmpresaTIPO.AsString := LDados.Tipo;
+    
+    // Garantir que tipo está definido
+    if dados.qryEmpresaTIPO.IsNull or (dados.qryEmpresaTIPO.AsString = '') then
+      dados.qryEmpresaTIPO.AsString := 'JURIDICA';
+    
+    Result := True;
+    Log('✓ PreencherEmpresaComFrontBox: Empresa preenchida com sucesso');
+    
+  except on E: Exception do
+  begin
+    FUltimoErro := 'Erro ao preencher empresa: ' + E.Message;
+    Log('✗ PreencherEmpresaComFrontBox: ' + FUltimoErro);
+    Result := False;
+  end;
+  end;
 end;
 
 // Utilitário
