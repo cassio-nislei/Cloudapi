@@ -31,5 +31,10 @@ class Pessoa {
     public $chave_a = '';
     public $chave_b = '';
     
+    // Campos adicionais para FrontBox
+    public $cnae = '';
+    public $im = '';
+    public $tipo = '';
+    
 }
 

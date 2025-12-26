@@ -35,6 +35,9 @@ type
     Cidade: string;
     Estado: string;
     CEP: string;
+    CNAE: string;
+    IM: string;
+    Tipo: string;
   end;
 
   // Classe principal da API

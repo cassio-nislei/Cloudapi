@@ -59,7 +59,12 @@ class FrontBox extends CI_Controller {
                     "{ie}$pessoa->IE{/ie}" .
                     "{telefone}$pessoa->TELEFONE{/telefone}" .
                     "{numero}$pessoa->NUMERO{/numero}" .
-                    "{bairro}$pessoa->BAIRRO{/bairro}" .                    
+                    "{bairro}$pessoa->BAIRRO{/bairro}" .
+                    "{cidade}$pessoa->CIDADE{/cidade}" .
+                    "{estado}$pessoa->ESTADO{/estado}" .
+                    "{cnae}$pessoa->CNAE{/cnae}" .
+                    "{im}$pessoa->IM{/im}" .
+                    "{tipo}$pessoa->TIPO{/tipo}" .                    
                     "{email}$pessoa->EMAIL{/email}";
             
             echo $resp;
