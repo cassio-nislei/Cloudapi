@@ -53,6 +53,7 @@ type
     FVersaoFBX: string;            // Versão do FBX para enviar na validação
     FVersaoPDV: string;            // Versão do PDV para enviar na validação
     FUltimoErro: string;           // Armazena última mensagem de erro
+    FLastGenericResponse: string;  // Armazena última resposta genérica
 
 
 
@@ -103,6 +104,64 @@ type
     function ValidarTerminais: Boolean;
     function LicencaEstaVencida(out Msg: string): Boolean;
     function LicencaEstaBloqueada(out Msg: string): Boolean;
+
+    // ===== MÉTODOS DE PREÇO/MENSALIDADE =====
+    function GetMensalidadeEmpresa(const ACNPJ: string; out AMensalidade: Double): Boolean;
+    function GetValorLicensaEmpresa(const ACNPJ: string; out AValor: Double): Boolean;
+    function AtualizarMensalidadeEmpresa(const ACNPJ: string; AValor: Double): Boolean;
+    function CalcularValorTotalLicensas(const ACNPJ: string; AQtdTerminais: Integer; out AValorTotal: Double): Boolean;
+    function GetFormattedMensalidade(const ACNPJ: string): string;  // Formata como moeda
+
+    // ===== NOVOS MÉTODOS - TODOS OS ENDPOINTS DA API =====
+    // Pessoas
+    function ConsultarPessoaById(const AId: string; out AResponse: string): Boolean;
+    
+    // Empresa
+    function GetEmpresas(out AResponse: string): Boolean;
+    function GetEmpresaById(const AId: string; out AResponse: string): Boolean;
+    function CriarEmpresa(const ADados: string): Boolean;
+
+    // Usuarios
+    function GetUsuarios(out AResponse: string): Boolean;
+    function GetUsuarioById(const AId: string; out AResponse: string): Boolean;
+    function GetPermissoes(out AResponse: string): Boolean;
+    function SolicitarResetSenha(const AEmail: string; out AResponse: string): Boolean;
+
+    // Grupos
+    function GetGrupos(out AResponse: string): Boolean;
+    function GetGrupoById(const AId: string; out AResponse: string): Boolean;
+    function GetPermissoesGrupo(const AIdGrupo: string; out AResponse: string): Boolean;
+
+    // Perfil
+    function GetPerfil(out AResponse: string): Boolean;
+    function AtualizarPerfil(const ADados: string): Boolean;
+
+    // FrontBox
+    function GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+    function VerificaAcessoImpostos(const ACGC: string; out AResponse: string): Boolean;
+
+    // Filiais
+    function GetFiliais(out AResponse: string): Boolean;
+    function GetFilialById(const AId: string; out AResponse: string): Boolean;
+
+    // Produtos
+    function GetProdutos(out AResponse: string): Boolean;
+    function GetProdutoById(const AId: string; out AResponse: string): Boolean;
+
+    // Diarios
+    function GetDiarios(out AResponse: string): Boolean;
+    function GetDiarioById(const AId: string; out AResponse: string): Boolean;
+
+    // Modulos
+    function GetModulos(out AResponse: string): Boolean;
+    function GetModuloById(const AId: string; out AResponse: string): Boolean;
+
+    // Visitantes
+    function GetVisitantes(out AResponse: string): Boolean;
+    function GetVisitanteById(const AId: string; out AResponse: string): Boolean;
+
+    // Utilitário
+    function GetLastGenericResponse: string;
 
     procedure TimerSync(Sender: TObject);
     procedure AtualizaStatusBar;
@@ -1592,6 +1651,779 @@ begin
       Result := False;
     end;
   end;
+end;
+
+// ===== NOVOS MÉTODOS: PREÇOS E MENSALIDADE =====
+
+function TEmpresaLicencaManager.GetMensalidadeEmpresa(const ACNPJ: string; 
+  out AMensalidade: Double): Boolean;
+var
+  LResponse: string;
+  LJSON: TJSONObject;
+  LData: TJSONValue;
+begin
+  Result := False;
+  AMensalidade := 0;
+  
+  try
+    // Consultar na API
+    if not Assigned(FAPIHelper) then
+    begin
+      Log('ERRO: API Helper não inicializado');
+      Exit;
+    end;
+    
+    Log('Consultando mensalidade da empresa CNPJ: ' + ACNPJ);
+    
+    if FAPIHelper.ConsultarPessoaPorCNPJ(ACNPJ, LResponse) then
+    begin
+      // Parse JSON da resposta
+      LJSON := TJSONObject.ParseJSONValue(LResponse) as TJSONObject;
+      if Assigned(LJSON) then
+      try
+        // Tentar obter do campo 'data'
+        if LJSON.TryGetValue<TJSONValue>('data', LData) and (LData is TJSONObject) then
+        begin
+          var LDataObj := TJSONObject(LData);
+          if LDataObj.TryGetValue<Double>('MENSALIDADE', AMensalidade) then
+          begin
+            Log(Format('✓ Mensalidade obtida: R$ %.2f', [AMensalidade]));
+            Result := True;
+          end
+          else
+          begin
+            Log('AVISO: Campo MENSALIDADE não encontrado na resposta');
+          end;
+        end;
+      finally
+        LJSON.Free;
+      end;
+    end
+    else
+      Log('ERRO: Falha ao consultar pessoa na API: ' + FAPIHelper.GetUltimoErro);
+      
+  except
+    on E: Exception do
+    begin
+      Log('ERRO ao obter mensalidade: ' + E.Message);
+      FUltimoErro := E.Message;
+    end;
+  end;
+end;
+
+function TEmpresaLicencaManager.GetValorLicensaEmpresa(const ACNPJ: string; 
+  out AValor: Double): Boolean;
+begin
+  // Para compatibilidade: GetValorLicensaEmpresa é alias para GetMensalidadeEmpresa
+  Result := GetMensalidadeEmpresa(ACNPJ, AValor);
+end;
+
+function TEmpresaLicencaManager.AtualizarMensalidadeEmpresa(const ACNPJ: string; 
+  AValor: Double): Boolean;
+var
+  LDados: string;
+  LJSON: TJSONObject;
+begin
+  Result := False;
+  
+  try
+    Log(Format('Atualizando mensalidade para CNPJ: %s | Valor: R$ %.2f', [ACNPJ, AValor]));
+    
+    if not Assigned(FAPIHelper) then
+    begin
+      Log('ERRO: API Helper não inicializado');
+      Exit;
+    end;
+    
+    // Preparar JSON com dados a atualizar
+    LJSON := TJSONObject.Create;
+    try
+      LJSON.AddPair('mensalidade', TJSONNumber.Create(AValor));
+      LDados := LJSON.ToJSON;
+    finally
+      LJSON.Free;
+    end;
+    
+    // Enviar atualização via API (POST /pessoas)
+    if FAPIHelper.AtualizarPessoa(ACNPJ, LDados) then
+    begin
+      Log('✓ Mensalidade atualizada com sucesso');
+      Result := True;
+    end
+    else
+      Log('ERRO: Falha ao atualizar mensalidade: ' + FAPIHelper.GetUltimoErro);
+      
+  except
+    on E: Exception do
+    begin
+      Log('ERRO ao atualizar mensalidade: ' + E.Message);
+      FUltimoErro := E.Message;
+    end;
+  end;
+end;
+
+function TEmpresaLicencaManager.CalcularValorTotalLicensas(const ACNPJ: string; 
+  AQtdTerminais: Integer; out AValorTotal: Double): Boolean;
+var
+  LMensalidade: Double;
+  LDesconto: Double;
+begin
+  Result := False;
+  AValorTotal := 0;
+  
+  try
+    // Obter mensalidade base
+    if GetMensalidadeEmpresa(ACNPJ, LMensalidade) then
+    begin
+      // Cálculo simples: Mensalidade * Quantidade de Terminais
+      // Com possível desconto por volume (10% se >= 5 terminais)
+      AValorTotal := LMensalidade * AQtdTerminais;
+      
+      if AQtdTerminais >= 5 then
+      begin
+        LDesconto := AValorTotal * 0.10;  // 10% de desconto
+        AValorTotal := AValorTotal - LDesconto;
+        Log(Format('✓ Valor total com desconto de volume: R$ %.2f (desconto: R$ %.2f)', 
+          [AValorTotal, LDesconto]));
+      end
+      else
+        Log(Format('✓ Valor total sem desconto: R$ %.2f', [AValorTotal]));
+        
+      Result := True;
+    end
+    else
+      Log('ERRO: Não foi possível obter mensalidade para cálculo');
+      
+  except
+    on E: Exception do
+    begin
+      Log('ERRO ao calcular valor total: ' + E.Message);
+      FUltimoErro := E.Message;
+    end;
+  end;
+end;
+
+function TEmpresaLicencaManager.GetFormattedMensalidade(const ACNPJ: string): string;
+var
+  LMensalidade: Double;
+begin
+  Result := 'R$ 0,00';
+  
+  try
+    if GetMensalidadeEmpresa(ACNPJ, LMensalidade) then
+    begin
+      // Formatar como moeda brasileira
+      Result := 'R$ ' + FormatFloat('0.00', LMensalidade);
+      // Se tiver função helper, usar
+      // if Assigned(FAPIHelper) then
+      //   Result := FAPIHelper.ValorToBr(LMensalidade);
+    end;
+  except
+    Result := 'ERRO';
+  end;
+end;
+
+// ========== NOVOS MÉTODOS - TODOS OS ENDPOINTS ==========
+
+// Pessoas
+function TEmpresaLicencaManager.ConsultarPessoaById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AId = '' then
+  begin
+    FUltimoErro := 'ID da pessoa é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.ConsultarPessoaById(AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' ConsultarPessoaById(' + AId + ')');
+end;
+
+// Empresa
+function TEmpresaLicencaManager.GetEmpresas(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetEmpresas(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetEmpresas()');
+end;
+
+function TEmpresaLicencaManager.GetEmpresaById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AId = '' then
+  begin
+    FUltimoErro := 'ID da empresa é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetEmpresaById(AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetEmpresaById(' + AId + ')');
+end;
+
+function TEmpresaLicencaManager.CriarEmpresa(const ADados: string): Boolean;
+begin
+  Result := False;
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if ADados = '' then
+  begin
+    FUltimoErro := 'Dados da empresa são obrigatórios';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.CriarEmpresa(ADados);
+  if not Result then
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' CriarEmpresa()');
+end;
+
+// Usuarios
+function TEmpresaLicencaManager.GetUsuarios(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetUsuarios(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetUsuarios()');
+end;
+
+function TEmpresaLicencaManager.GetUsuarioById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AId = '' then
+  begin
+    FUltimoErro := 'ID do usuário é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetUsuarioById(AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetUsuarioById(' + AId + ')');
+end;
+
+function TEmpresaLicencaManager.GetPermissoes(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetPermissoes(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetPermissoes()');
+end;
+
+function TEmpresaLicencaManager.SolicitarResetSenha(const AEmail: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AEmail = '' then
+  begin
+    FUltimoErro := 'Email é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.SolicitarResetSenha(AEmail, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' SolicitarResetSenha(' + AEmail + ')');
+end;
+
+// Grupos
+function TEmpresaLicencaManager.GetGrupos(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetGrupos(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetGrupos()');
+end;
+
+function TEmpresaLicencaManager.GetGrupoById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AId = '' then
+  begin
+    FUltimoErro := 'ID do grupo é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetGrupoById(AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetGrupoById(' + AId + ')');
+end;
+
+function TEmpresaLicencaManager.GetPermissoesGrupo(const AIdGrupo: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AIdGrupo = '' then
+  begin
+    FUltimoErro := 'ID do grupo é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetPermissoesGrupo(AIdGrupo, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetPermissoesGrupo(' + AIdGrupo + ')');
+end;
+
+// Perfil
+function TEmpresaLicencaManager.GetPerfil(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetPerfil(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetPerfil()');
+end;
+
+function TEmpresaLicencaManager.AtualizarPerfil(const ADados: string): Boolean;
+begin
+  Result := False;
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if ADados = '' then
+  begin
+    FUltimoErro := 'Dados do perfil são obrigatórios';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.AtualizarPerfil(ADados);
+  if not Result then
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' AtualizarPerfil()');
+end;
+
+// FrontBox
+function TEmpresaLicencaManager.GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if ACGC = '' then
+  begin
+    FUltimoErro := 'CGC é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetInfoFrontBox(ACGC, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetInfoFrontBox(' + ACGC + ')');
+end;
+
+function TEmpresaLicencaManager.VerificaAcessoImpostos(const ACGC: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if ACGC = '' then
+  begin
+    FUltimoErro := 'CGC é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.VerificaAcessoImpostos(ACGC, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' VerificaAcessoImpostos(' + ACGC + ')');
+end;
+
+// Filiais
+function TEmpresaLicencaManager.GetFiliais(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetFiliais(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetFiliais()');
+end;
+
+function TEmpresaLicencaManager.GetFilialById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AId = '' then
+  begin
+    FUltimoErro := 'ID da filial é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetFilialById(AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetFilialById(' + AId + ')');
+end;
+
+// Produtos
+function TEmpresaLicencaManager.GetProdutos(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetProdutos(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetProdutos()');
+end;
+
+function TEmpresaLicencaManager.GetProdutoById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AId = '' then
+  begin
+    FUltimoErro := 'ID do produto é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetProdutoById(AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetProdutoById(' + AId + ')');
+end;
+
+// Diarios
+function TEmpresaLicencaManager.GetDiarios(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetDiarios(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetDiarios()');
+end;
+
+function TEmpresaLicencaManager.GetDiarioById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AId = '' then
+  begin
+    FUltimoErro := 'ID do diário é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetDiarioById(AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetDiarioById(' + AId + ')');
+end;
+
+// Modulos
+function TEmpresaLicencaManager.GetModulos(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetModulos(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetModulos()');
+end;
+
+function TEmpresaLicencaManager.GetModuloById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AId = '' then
+  begin
+    FUltimoErro := 'ID do módulo é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetModuloById(AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetModuloById(' + AId + ')');
+end;
+
+// Visitantes
+function TEmpresaLicencaManager.GetVisitantes(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetVisitantes(AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetVisitantes()');
+end;
+
+function TEmpresaLicencaManager.GetVisitanteById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    FUltimoErro := 'API Helper não inicializado';
+    Exit;
+  end;
+  
+  if AId = '' then
+  begin
+    FUltimoErro := 'ID do visitante é obrigatório';
+    Exit;
+  end;
+  
+  Result := FAPIHelper.GetVisitanteById(AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse
+  else
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+  
+  Log(IfThen(Result, '✓', '✗') + ' GetVisitanteById(' + AId + ')');
+end;
+
+// Utilitário
+function TEmpresaLicencaManager.GetLastGenericResponse: string;
+begin
+  Result := FLastGenericResponse;
 end;
 
 initialization

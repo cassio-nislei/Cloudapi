@@ -98,6 +98,9 @@ type
       const AComplemento: string = ''; const ABairro: string = ''; const ACidade: string = '';
       const AEstado: string = ''; const ACEP: string = ''): Boolean;
     function ValidarPassportEmpresa(const ACNPJ, AHostname, AGUID: string): Boolean;
+    function GetStatusRegistro: Boolean;
+    function GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+    function ConsultarPessoa(const ACNPJ: string; out AResponse: string): Boolean;
 
     function ValidarNSerieAntiFraude: Boolean;
     function ValidarTerminais: Boolean;
@@ -438,6 +441,69 @@ begin
       Result := False;
     end;
   end;
+end;
+
+function TEmpresaLicencaManager.GetStatusRegistro: Boolean;
+begin
+  if not Assigned(FAPIHelper) then
+  begin
+    Log('GetStatusRegistro: FAPIHelper não inicializado.');
+    FUltimoErro := 'API Helper não inicializado';
+    Result := False;
+    Exit;
+  end;
+  
+  Result := FAPIHelper.VerificarStatusRegistro;
+  if not Result then
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+end;
+
+function TEmpresaLicencaManager.GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+begin
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    Log('GetInfoFrontBox: FAPIHelper não inicializado.');
+    FUltimoErro := 'API Helper não inicializado';
+    Result := False;
+    Exit;
+  end;
+  
+  if ACGC = '' then
+  begin
+    FUltimoErro := 'CGC/CNPJ é obrigatório';
+    Result := False;
+    Exit;
+  end;
+  
+  Result := FAPIHelper.API.GetInfoFrontBox(ACGC, AResponse);
+  if not Result then
+    FUltimoErro := FAPIHelper.GetUltimoErro;
+end;
+
+function TEmpresaLicencaManager.ConsultarPessoa(const ACNPJ: string; out AResponse: string): Boolean;
+begin
+  AResponse := '';
+  
+  if not Assigned(FAPIHelper) then
+  begin
+    Log('ConsultarPessoa: FAPIHelper não inicializado.');
+    FUltimoErro := 'API Helper não inicializado';
+    Result := False;
+    Exit;
+  end;
+  
+  if ACNPJ = '' then
+  begin
+    FUltimoErro := 'CNPJ é obrigatório';
+    Result := False;
+    Exit;
+  end;
+  
+  Result := FAPIHelper.ConsultarPessoaPorCNPJ(ACNPJ, AResponse);
+  if not Result then
+    FUltimoErro := FAPIHelper.GetUltimoErro;
 end;
 
 procedure TEmpresaLicencaManager.AtualizarFormEmpresa;

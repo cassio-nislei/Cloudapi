@@ -425,6 +425,7 @@ type
     procedure btnSincronizarClick(Sender: TObject);
     procedure btnValidarLicencaClick(Sender: TObject);
     procedure btnRegistrarEmpresaClick(Sender: TObject);
+    procedure btnFrontBoxClick(Sender: TObject);
   private
     { Private declarations }
     FLogList: TStringList;
@@ -2075,6 +2076,41 @@ begin
     end;
   finally
     LLog.Free;
+  end;
+end;
+
+procedure TfrmEmpresa.btnFrontBoxClick(Sender: TObject);
+var
+  FLicencaManager: TEmpresaLicencaManager;
+  LCNPJ, LResponse: string;
+  LDebugMsg: string;
+begin
+  LCNPJ := Trim(DBEdit9.Text);
+  
+  if LCNPJ = '' then
+  begin
+    ShowMessage('É necessário preencher o CNPJ da empresa.');
+    Exit;
+  end;
+  
+  FLicencaManager := TEmpresaLicencaManager.Create(Self);
+  try
+    LDebugMsg := 'Testando FrontBox' + sLineBreak +
+                 'CNPJ: ' + LCNPJ + sLineBreak +
+                 'URL: ' + ADMCloud_URL_PROD + sLineBreak +
+                 'Endpoint: api/frontbox/getInfo?q=' + LCNPJ + sLineBreak +
+                 'User: ' + ADMCloud_USER + sLineBreak + sLineBreak;
+    
+    if FLicencaManager.GetInfoFrontBox(LCNPJ, LResponse) then
+    begin
+      ShowMessage('✓ Sucesso FrontBox:' + sLineBreak + sLineBreak + LDebugMsg + 'Resposta:' + sLineBreak + LResponse);
+    end
+    else
+    begin
+      ShowMessage('✗ Erro FrontBox (404):' + sLineBreak + sLineBreak + LDebugMsg + 'Erro:' + sLineBreak + FLicencaManager.GetUltimoErro);
+    end;
+  finally
+    FLicencaManager.Free;
   end;
 end;
 

@@ -50,6 +50,7 @@ type
     FSSL: TIdSSLIOHandlerSocketOpenSSL;
     FLastPassportResponse: string;
     FLastRegistroResponse: string;
+    FLastGenericResponse: string;
 
     // Métodos privados
     procedure ConfigurarSSL;
@@ -69,18 +70,61 @@ type
     procedure ConfigurarCredenciais(const AUsername, APassword: string);
     procedure ConfigurarTimeout(const AMS: Integer);
 
-    // Endpoints da API
+    // ========== Endpoints Públicos ==========
+    // /api/pessoas
+    function ConsultarPessoa(const ACNPJ: string; out AResponse: string): Boolean;
+    function ConsultarPessoaById(const AId: string; out AResponse: string): Boolean;
+    
+    // /api/v1/passport
     function ValidarPassport(const ACGC, AHostname, AGUID: string; 
       const AFBX: string = ''; const APDV: string = ''): Boolean;
+    
+    // /api/v1/registro
     function GetStatusRegistro: Boolean;
     function RegistrarCliente(const ARegistro: TRegistroData): Boolean;
-    function ConsultarPessoa(const ACNPJ: string; out AResponse: string): Boolean;
+
+    // ========== Endpoints Empresa ==========
+    function GetEmpresas(out AResponse: string): Boolean;
+    function GetEmpresaById(const AId: string; out AResponse: string): Boolean;
+    function CriarEmpresa(const ADados: string): Boolean;
+
+    // ========== Endpoints Usuarios ==========
+    function GetUsuarios(out AResponse: string): Boolean;
+    function GetUsuarioById(const AId: string; out AResponse: string): Boolean;
+    function GetPermissoes(out AResponse: string): Boolean;
+    function SolicitarResetSenha(const AEmail: string; out AResponse: string): Boolean;
+
+    // ========== Endpoints Grupos ==========
+    function GetGrupos(out AResponse: string): Boolean;
+    function GetGrupoById(const AId: string; out AResponse: string): Boolean;
+    function GetPermissoesGrupo(const AIdGrupo: string; out AResponse: string): Boolean;
+
+    // ========== Endpoints Perfil ==========
+    function GetPerfil(out AResponse: string): Boolean;
+    function AtualizarPerfil(const ADados: string): Boolean;
+
+    // ========== Endpoints FrontBox ==========
+    function GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+    function VerificaAcessoImpostos(const ACGC: string; out AResponse: string): Boolean;
+
+    // ========== Endpoints Outros ==========
+    function GetFiliais(out AResponse: string): Boolean;
+    function GetFilialById(const AId: string; out AResponse: string): Boolean;
+    function GetProdutos(out AResponse: string): Boolean;
+    function GetProdutoById(const AId: string; out AResponse: string): Boolean;
+    function GetDiarios(out AResponse: string): Boolean;
+    function GetDiarioById(const AId: string; out AResponse: string): Boolean;
+    function GetModulos(out AResponse: string): Boolean;
+    function GetModuloById(const AId: string; out AResponse: string): Boolean;
+    function GetVisitantes(out AResponse: string): Boolean;
+    function GetVisitanteById(const AId: string; out AResponse: string): Boolean;
 
     // Métodos de resposta
     function GetPassportResponse: TPassportResponse;
     function GetRegistroResponse: TRegistroResponse;
     function GetLastPassportResponseRaw: string;
     function GetLastRegistroResponseRaw: string;
+    function GetLastGenericResponseRaw: string;
 
     // Utilitários
     function GetUltimoErro: string;
@@ -106,9 +150,9 @@ begin
     FURL := ADMCloud_URL_PROD
   else
     FURL := AURL;
-  FUsername := 'api_frontbox';
-  FPassword := 'api_FBXzylXI0ZluneF1lt3rwXyZsfayp0cCrKCGX0rg';
-  FTimeout := 30000; // 30 segundos padrão
+  FUsername := ADMCloud_USER;
+  FPassword := ADMCloud_PASS;
+  FTimeout := ADMCloud_TIMEOUT_PADRAO;
   FLastError := '';
   FLastStatusCode := 0;
 
@@ -308,8 +352,8 @@ begin
     Exit;
   end;
   
-  // Endpoint correto conforme Swagger: GET /passport
-  LEndpoint := 'passport?cgc=' + ACGC + '&hostname=' + AHostname + '&guid=' + AGUID;
+  // Endpoint correto: GET /api/passport
+  LEndpoint := ADMCloud_ENDPOINT_PASSPORT + '?cgc=' + ACGC + '&hostname=' + AHostname + '&guid=' + AGUID;
 
   if AFBX <> '' then
     LEndpoint := LEndpoint + '&fbx=' + AFBX;
@@ -324,8 +368,8 @@ function TADMCloudAPI.GetStatusRegistro: Boolean;
 var
   LResponse: string;
 begin
-  // Endpoint correto conforme Swagger: GET /pessoas
-  Result := RequisicaoGET('pessoas', LResponse);
+  // Endpoint correto conforme Swagger: GET /api/pessoas
+  Result := RequisicaoGET(ADMCloud_ENDPOINT_REGISTRO_GET, LResponse);
 end;
 
 function TADMCloudAPI.RegistrarCliente(const ARegistro: TRegistroData): Boolean;
@@ -405,9 +449,9 @@ begin
   LCNPJLimpo := StringReplace(StringReplace(ACNPJ, '.', '', [rfReplaceAll]), '/', '', [rfReplaceAll]);
   LCNPJLimpo := StringReplace(LCNPJLimpo, '-', '', [rfReplaceAll]);
 
-  // Fazer requisição GET /pessoas?cnpj=XXXXX para buscar a pessoa na API
+  // Fazer requisição GET /api/pessoas?cnpj=XXXXX para buscar a pessoa na API
   // O endpoint /pessoas não requer autenticação de sessão, mas pode usar Bearer Token
-  Result := RequisicaoGET('pessoas?cnpj=' + LCNPJLimpo, LResponseLocal);
+  Result := RequisicaoGET(ADMCloud_ENDPOINT_REGISTRO_GET + '?cnpj=' + LCNPJLimpo, LResponseLocal);
   AResponse := LResponseLocal;
   
   // Armazenar resposta
@@ -495,6 +539,317 @@ begin
   // Testar conexão fazendo um GET em /api/passport (endpoint público)
   // Qualquer CGC/hostname/GUID válido serve para teste
   Result := RequisicaoGET('api/passport?cgc=00000000000000&hostname=TEST&guid=00000000-0000-0000-0000-000000000000', LResponse);
+end;
+
+function TADMCloudAPI.ConsultarPessoaById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AId = '' then
+  begin
+    TratarErro('ID da pessoa é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET(ADMCloud_ENDPOINT_REGISTRO_GET + '/id/' + AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+// ========== Empresa ==========
+function TADMCloudAPI.GetEmpresas(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/empresa', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetEmpresaById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AId = '' then
+  begin
+    TratarErro('ID da empresa é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/empresa/' + AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.CriarEmpresa(const ADados: string): Boolean;
+var
+  LResponse: string;
+begin
+  Result := RequisicaoPOST('empresa', ADados, LResponse);
+  if Result then
+    FLastGenericResponse := LResponse;
+end;
+
+// ========== Usuarios ==========
+function TADMCloudAPI.GetUsuarios(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/usuarios', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetUsuarioById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AId = '' then
+  begin
+    TratarErro('ID do usuário é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/usuarios/' + AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetPermissoes(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/usuarios/permissoes', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.SolicitarResetSenha(const AEmail: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AEmail = '' then
+  begin
+    TratarErro('Email é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/usuarios/requestPass/' + AEmail, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+// ========== Grupos ==========
+function TADMCloudAPI.GetGrupos(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/grupos', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetGrupoById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AId = '' then
+  begin
+    TratarErro('ID do grupo é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/grupos/' + AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetPermissoesGrupo(const AIdGrupo: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AIdGrupo = '' then
+  begin
+    TratarErro('ID do grupo é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/grupos/' + AIdGrupo + '/permissoes', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+// ========== Perfil ==========
+function TADMCloudAPI.GetPerfil(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/perfil', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.AtualizarPerfil(const ADados: string): Boolean;
+var
+  LResponse: string;
+begin
+  Result := RequisicaoPOST('api/perfil', ADados, LResponse);
+  if Result then
+    FLastGenericResponse := LResponse;
+end;
+
+// ========== FrontBox ==========
+function TADMCloudAPI.GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if ACGC = '' then
+  begin
+    TratarErro('CGC é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/frontbox/getInfo?q=' + ACGC, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.VerificaAcessoImpostos(const ACGC: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if ACGC = '' then
+  begin
+    TratarErro('CGC é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/frontbox/acessaImpostos?cgc=' + ACGC, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+// ========== Filiais ==========
+function TADMCloudAPI.GetFiliais(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/filiais', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetFilialById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AId = '' then
+  begin
+    TratarErro('ID da filial é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/filiais/' + AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+// ========== Produtos ==========
+function TADMCloudAPI.GetProdutos(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/produtos', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetProdutoById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AId = '' then
+  begin
+    TratarErro('ID do produto é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/produtos/' + AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+// ========== Diarios ==========
+function TADMCloudAPI.GetDiarios(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/diarios', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetDiarioById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AId = '' then
+  begin
+    TratarErro('ID do diário é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/diarios/' + AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+// ========== Modulos ==========
+function TADMCloudAPI.GetModulos(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/modulos', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetModuloById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AId = '' then
+  begin
+    TratarErro('ID do módulo é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/modulos/' + AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+// ========== Visitantes ==========
+function TADMCloudAPI.GetVisitantes(out AResponse: string): Boolean;
+begin
+  Result := RequisicaoGET('api/visitantes', AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetVisitanteById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  
+  if AId = '' then
+  begin
+    TratarErro('ID do visitante é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/visitantes/' + AId, AResponse);
+  if Result then
+    FLastGenericResponse := AResponse;
+end;
+
+function TADMCloudAPI.GetLastGenericResponseRaw: string;
+begin
+  Result := FLastGenericResponse;
 end;
 
 end.

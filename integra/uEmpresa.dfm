@@ -4560,5 +4560,14 @@ object frmEmpresa: TfrmEmpresa
       TabOrder = 3
       OnClick = btnRegistrarEmpresaClick
     end
+    object btnFrontBox: TButton
+      Left = 650
+      Top = 10
+      Width = 150
+      Height = 30
+      Caption = 'Testar FrontBox'
+      TabOrder = 4
+      OnClick = btnFrontBoxClick
+    end
   end
 end

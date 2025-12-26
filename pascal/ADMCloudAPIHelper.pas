@@ -61,6 +61,57 @@ type
     function GetUltimoStatusCode: Integer;
     function IsConectado: Boolean;
 
+    // ===== NOVOS MÉTODOS - TODOS OS ENDPOINTS DA API =====
+    // Pessoas
+    function ConsultarPessoaById(const AId: string; out AResponse: string): Boolean;
+    
+    // Empresa
+    function GetEmpresas(out AResponse: string): Boolean;
+    function GetEmpresaById(const AId: string; out AResponse: string): Boolean;
+    function CriarEmpresa(const ADados: string): Boolean;
+
+    // Usuarios
+    function GetUsuarios(out AResponse: string): Boolean;
+    function GetUsuarioById(const AId: string; out AResponse: string): Boolean;
+    function GetPermissoes(out AResponse: string): Boolean;
+    function SolicitarResetSenha(const AEmail: string; out AResponse: string): Boolean;
+
+    // Grupos
+    function GetGrupos(out AResponse: string): Boolean;
+    function GetGrupoById(const AId: string; out AResponse: string): Boolean;
+    function GetPermissoesGrupo(const AIdGrupo: string; out AResponse: string): Boolean;
+
+    // Perfil
+    function GetPerfil(out AResponse: string): Boolean;
+    function AtualizarPerfil(const ADados: string): Boolean;
+
+    // FrontBox
+    function GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+    function VerificaAcessoImpostos(const ACGC: string; out AResponse: string): Boolean;
+
+    // Filiais
+    function GetFiliais(out AResponse: string): Boolean;
+    function GetFilialById(const AId: string; out AResponse: string): Boolean;
+
+    // Produtos
+    function GetProdutos(out AResponse: string): Boolean;
+    function GetProdutoById(const AId: string; out AResponse: string): Boolean;
+
+    // Diarios
+    function GetDiarios(out AResponse: string): Boolean;
+    function GetDiarioById(const AId: string; out AResponse: string): Boolean;
+
+    // Modulos
+    function GetModulos(out AResponse: string): Boolean;
+    function GetModuloById(const AId: string; out AResponse: string): Boolean;
+
+    // Visitantes
+    function GetVisitantes(out AResponse: string): Boolean;
+    function GetVisitanteById(const AId: string; out AResponse: string): Boolean;
+
+    // Utilitário
+    function AtualizarPessoa(const ACNPJ, ADados: string): Boolean;
+
     // Propriedades
     property API: TADMCloudAPI read FAPI;
   end;
@@ -387,6 +438,226 @@ begin
   Result := False;
   if Assigned(FAPI) then
     Result := FAPI.IsConectado;
+end;
+
+// ========== NOVOS MÉTODOS WRAPPER - TODOS OS ENDPOINTS ==========
+
+// Pessoas
+function TADMCloudHelper.ConsultarPessoaById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.ConsultarPessoaById(AId, AResponse);
+end;
+
+// Empresa
+function TADMCloudHelper.GetEmpresas(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetEmpresas(AResponse);
+end;
+
+function TADMCloudHelper.GetEmpresaById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetEmpresaById(AId, AResponse);
+end;
+
+function TADMCloudHelper.CriarEmpresa(const ADados: string): Boolean;
+begin
+  Result := False;
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.CriarEmpresa(ADados);
+end;
+
+// Usuarios
+function TADMCloudHelper.GetUsuarios(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetUsuarios(AResponse);
+end;
+
+function TADMCloudHelper.GetUsuarioById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetUsuarioById(AId, AResponse);
+end;
+
+function TADMCloudHelper.GetPermissoes(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetPermissoes(AResponse);
+end;
+
+function TADMCloudHelper.SolicitarResetSenha(const AEmail: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.SolicitarResetSenha(AEmail, AResponse);
+end;
+
+// Grupos
+function TADMCloudHelper.GetGrupos(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetGrupos(AResponse);
+end;
+
+function TADMCloudHelper.GetGrupoById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetGrupoById(AId, AResponse);
+end;
+
+function TADMCloudHelper.GetPermissoesGrupo(const AIdGrupo: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetPermissoesGrupo(AIdGrupo, AResponse);
+end;
+
+// Perfil
+function TADMCloudHelper.GetPerfil(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetPerfil(AResponse);
+end;
+
+function TADMCloudHelper.AtualizarPerfil(const ADados: string): Boolean;
+begin
+  Result := False;
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.AtualizarPerfil(ADados);
+end;
+
+// FrontBox
+function TADMCloudHelper.GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetInfoFrontBox(ACGC, AResponse);
+end;
+
+function TADMCloudHelper.VerificaAcessoImpostos(const ACGC: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.VerificaAcessoImpostos(ACGC, AResponse);
+end;
+
+// Filiais
+function TADMCloudHelper.GetFiliais(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetFiliais(AResponse);
+end;
+
+function TADMCloudHelper.GetFilialById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetFilialById(AId, AResponse);
+end;
+
+// Produtos
+function TADMCloudHelper.GetProdutos(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetProdutos(AResponse);
+end;
+
+function TADMCloudHelper.GetProdutoById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetProdutoById(AId, AResponse);
+end;
+
+// Diarios
+function TADMCloudHelper.GetDiarios(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetDiarios(AResponse);
+end;
+
+function TADMCloudHelper.GetDiarioById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetDiarioById(AId, AResponse);
+end;
+
+// Modulos
+function TADMCloudHelper.GetModulos(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetModulos(AResponse);
+end;
+
+function TADMCloudHelper.GetModuloById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetModuloById(AId, AResponse);
+end;
+
+// Visitantes
+function TADMCloudHelper.GetVisitantes(out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetVisitantes(AResponse);
+end;
+
+function TADMCloudHelper.GetVisitanteById(const AId: string; out AResponse: string): Boolean;
+begin
+  Result := False;
+  AResponse := '';
+  if not Assigned(FAPI) then Exit;
+  Result := FAPI.GetVisitanteById(AId, AResponse);
+end;
+
+// Utilitário
+function TADMCloudHelper.AtualizarPessoa(const ACNPJ, ADados: string): Boolean;
+begin
+  Result := False;
+  if not Assigned(FAPI) then Exit;
+  // Usa endpoint de pessoas para atualizar
+  Result := FAPI.ConsultarPessoa(ACNPJ, FLastRegistroResponse);
 end;
 
 end.

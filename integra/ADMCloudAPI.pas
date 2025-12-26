@@ -75,6 +75,7 @@ type
     function GetStatusRegistro: Boolean;
     function RegistrarCliente(const ARegistro: TRegistroData): Boolean;
     function ConsultarPessoa(const ACNPJ: string; out AResponse: string): Boolean;
+    function GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
 
     // Métodos de resposta
     function GetPassportResponse: TPassportResponse;
@@ -106,9 +107,9 @@ begin
     FURL := ADMCloud_URL_PROD
   else
     FURL := AURL;
-  FUsername := 'api_frontbox';
-  FPassword := 'api_FBXzylXI0ZluneF1lt3rwXyZsfayp0cCrKCGX0rg';
-  FTimeout := 30000; // 30 segundos padrão
+  FUsername := ADMCloud_USER;
+  FPassword := ADMCloud_PASS;
+  FTimeout := ADMCloud_TIMEOUT_PADRAO;
   FLastError := '';
   FLastStatusCode := 0;
 
@@ -495,6 +496,26 @@ begin
   // Testar conexão fazendo um GET em /api/passport (endpoint público)
   // Qualquer CGC/hostname/GUID válido serve para teste
   Result := RequisicaoGET('api/passport?cgc=00000000000000&hostname=TEST&guid=00000000-0000-0000-0000-000000000000', LResponse);
+end;
+
+function TADMCloudAPI.GetInfoFrontBox(const ACGC: string; out AResponse: string): Boolean;
+var
+  LCGCLimpo: string;
+begin
+  Result := False;
+  AResponse := '';
+  
+  // Remover formatação do CNPJ/CGC
+  LCGCLimpo := StringReplace(StringReplace(ACGC, '.', '', [rfReplaceAll]), '/', '', [rfReplaceAll]);
+  LCGCLimpo := StringReplace(LCGCLimpo, '-', '', [rfReplaceAll]);
+  
+  if LCGCLimpo = '' then
+  begin
+    TratarErro('CGC/CNPJ é obrigatório');
+    Exit;
+  end;
+  
+  Result := RequisicaoGET('api/frontbox/getInfo?q=' + LCGCLimpo, AResponse);
 end;
 
 end.
